@@ -1,0 +1,12 @@
+#ifndef KENETSDK_GLOBAL_H
+#define KENETSDK_GLOBAL_H
+
+#include <QtCore/qglobal.h>
+
+#if defined(KENETSDK_LIBRARY)
+#  define KENETSDKSHARED_EXPORT Q_DECL_EXPORT
+#else
+#  define KENETSDKSHARED_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif // KENETSDK_GLOBAL_H
