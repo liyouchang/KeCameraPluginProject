@@ -5,24 +5,31 @@
 #include "Controller/InstanceController.h"
 #include "Controller/ConnectionController.h"
 #include "Device.h"
+#include "kenet_global.h"
+#include "TcpListener.h"
+
 class SocketHandler;
 
-class TcpDeviceHolder : public QObject,public InstanceController
+class TcpDeviceHolder : public Device,public InstanceController
 {
     Q_OBJECT
 public:
-    explicit TcpDeviceHolder(QObject *parent = 0);
-
+    explicit TcpDeviceHolder();
+    ~TcpDeviceHolder();
+    TcpListener *m_server;
 signals:
     void NewConnection(ConnectionController * c);
-protected slots:
+    void NewLoginInfo(int puid,QByteArray devMac);
+public slots:
+    void SearchedDev(int devIndex, QByteArray devInfo);
     void sGetSocketHandler(SocketHandler * sh);
+    void havaNewLogin(int puid,QByteArray devMac);
+    // InstanceController interface
 public:
     int ListenConnect(int port);
-    void SetNewConnectionCallBack(fNewConnection cbfunc, void *user);
-protected:
-    fNewConnection cbNewConnection;
-    void * userNewConnection;
+    int SearchDevice();
+    void SetNetParam(NET_PARAM param);
+    NET_PARAM GetNetParam();
 };
 
 #endif // TCPDEVICEHOLDER_H

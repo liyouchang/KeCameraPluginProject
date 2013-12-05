@@ -1,4 +1,4 @@
-#include "ProtocalProcess.h"
+﻿#include "ProtocalProcess.h"
 #include "Device.h"
 #include "KeMessage.h"
 #include <QBuffer>
@@ -6,6 +6,9 @@
 #include "ChPTZ.h"
 #include "DevRecordDownload.h"
 #include "DevAlarm.h"
+#include "ChAskVideo.h"
+#include "ChLogin.h"
+#include "KeProxy/ChReceiveLogin.h"
 ProtocalProcess::ProtocalProcess(QObject *parent) :
     QObject(parent)
 {
@@ -13,7 +16,7 @@ ProtocalProcess::ProtocalProcess(QObject *parent) :
     toRead = 0;
 }
 
-void ProtocalProcess::ExtractMessage(QByteArray &allBytes, Device *parser)
+void ProtocalProcess::ExtractMessage(QByteArray &allBytes, Channel *parser)
 {
     int nRead= 0;
     QBuffer buffer(&allBytes);
@@ -97,21 +100,21 @@ QByteArray ProtocalProcess::CreateMessage(ChRealData *ch)
 QByteArray ProtocalProcess::CreateMessage(DevRealPlay *ch)
 {
     QByteArray msgSend;
-    int msgLen = sizeof(KEVideoServerReq);
-    msgSend.resize(msgLen);
-    KEVideoServerReq * pReqMsg;
-    pReqMsg = (KEVideoServerReq *)msgSend.data();
-    pReqMsg->protocal = PROTOCOL_HEAD;
-    pReqMsg->msgType = KEMSG_TYPE_VIDEOSERVER;
-    pReqMsg->msgLength = msgLen;
-    pReqMsg->clientID = 0;
-    pReqMsg->channelNo = ch->getChannelID()%256;
-    pReqMsg->videoID = ch->getChannelID()/256;
-    pReqMsg->video =(ch->m_mediaType & Media_Vedio) ? 0 : 1;
-    pReqMsg->listen = (ch->m_mediaType & Media_Listen) ? 0 : 1;
-    pReqMsg->talk = (ch->m_mediaType & Media_Talk) ? 0 : 1;
-    pReqMsg->protocalType = 0;
-    pReqMsg->transSvrIp = 0;
+//    int msgLen = sizeof(KEVideoServerReq);
+//    msgSend.resize(msgLen);
+//    KEVideoServerReq * pReqMsg;
+//    pReqMsg = (KEVideoServerReq *)msgSend.data();
+//    pReqMsg->protocal = PROTOCOL_HEAD;
+//    pReqMsg->msgType = KEMSG_TYPE_VIDEOSERVER;
+//    pReqMsg->msgLength = msgLen;
+//    pReqMsg->clientID = 0;
+//    pReqMsg->channelNo = ch->getChannelID()%256;
+//    pReqMsg->videoID = ch->getChannelID()/256;
+//    pReqMsg->video =(ch->m_mediaType & Media_Vedio) ? 0 : 1;
+//    pReqMsg->listen = (ch->m_mediaType & Media_Listen) ? 0 : 1;
+//    pReqMsg->talk = (ch->m_mediaType & Media_Talk) ? 0 : 1;
+//    pReqMsg->protocalType = 0;
+//    pReqMsg->transSvrIp = 0;
 
     return msgSend;
 }
@@ -136,30 +139,38 @@ void ProtocalProcess::ParseMessage(QByteArray & msgData,DevConnection *ch)
         break;
     case KEDevMsg_AlarmVideo:
     case KEDevMsg_AlarmSenser:
+        qDebug("receive alarm message!!");
         ch->ChildrenRespondMsg<DevAlarm *>(msgData);
         break;
     case  DevMsg_GetPTZParam:
-        //RecvGetPTZParam(msgData);
         break;
     case  DevMsg_WifiCheck:
-        //RecvDevWifiCheck(msgData);
         break;
     case  DevMsg_WifiStart:
-        // RecvSetDevWifiResp(msgData);
         break;
     case DevMsg_HeartBeat:
-        // RecvHeartBeat(msgData);
+        --ch->heartCount;
         break;
     case DevMsg_SETVIDEOPARAM:
-        //RecvSetVideoParam(msgData);
         break;
     case DevMsg_GETVIDEOPARAM:
-        //RecvGetVideoParam(msgData);
+        break;
+    case DevMsg_SerialData:
+        ch->ChildrenRespondMsg<ChPTZ *>(msgData);
+        break;
+    case Client_GetKeyDevice:
+        ch->ChildrenRespondMsg<ChSecretKey *>(msgData);
+        break;
+    case Client_LoginDevice:
+        ch->ChildrenRespondMsg<ChLogin *>(msgData);
+        break;
+    case Device_LoginServer:
+    case Device_GetKeyServer:
+        ch->ChildrenRespondMsg<ChReceiveLogin *>(msgData);
         break;
     default:
+        qDebug("Receive unkown message: %d ",msgType);
         break;
-        //LOG_INFO("Receive unkown message: " <<pHead->msgType);
-
     }
 }
 
@@ -169,24 +180,13 @@ void ProtocalProcess::ParseMessage(QByteArray &msgData, DevRealPlay *ch)
     switch(msgType)
     {
     case KEMSG_TYPE_VIDEOSERVER:
-    {
-        //qDebug("DevRealPlay::OnRespond msg KEMSG_TYPE_VIDEOSERVER! ");
-        KEVideoServerResp *pMsg = (KEVideoServerResp *)msgData.data();
-        int cameraID = CreateCameraID(pMsg->videoID, pMsg->channelNo);
-        if(cameraID != ch->getChannelID() || pMsg->clientID != ch->getClientID()){
-            return;
-        }
-        ch->wakeup();
-    }
+        ch->ChildrenRespondMsg<ChAskVideo *>(msgData);
         break;
     case KEMSG_TYPE_MEDIATRANS:
         break;
     case KEMSG_TYPE_VIDEOSTREAM:
     case KEMSG_TYPE_AUDIOSTREAM:
-    {
-        if(ch->chRealData)
-            ch->chRealData->OnRespond(msgData);
-    }
+        ch->ChildrenRespondMsg<ChRealData *>(msgData);
         break;
     case DevMsg_SerialData:
         ch->ChildrenRespondMsg<ChPTZ *>(msgData);
@@ -224,14 +224,14 @@ void ProtocalProcess::ParseMessage(QByteArray &msgData, DevRecordQuery *ch)
     if(msgType == KEMSG_RecordFileList)
     {
         KERecordFileListResp * pMsg = (KERecordFileListResp *)msgData.data();
-        int cameraID = CreateCameraID(pMsg->videoID, pMsg->channelNo);
+        char tmpNo = pMsg->channelNo ^ 0x80;
+        int cameraID = CreateCameraID(pMsg->videoID, tmpNo);
         if(cameraID != ch->getChannelID()){
             return;
         }
         if (pMsg->msgLength == 16)//如果只收到消息头，表示文件内容结束
         {
             qDebug("no record find!");
-            ch->findEnd = true;
             ch->wakeup();
             return;
         }

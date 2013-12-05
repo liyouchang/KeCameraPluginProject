@@ -6,6 +6,9 @@ DevRecordDownload::DevRecordDownload(Device *parent) :
     Device(parent)
 {
     recordFile = 0;
+    this->downloadedSize = 0;
+    QObject::connect(this,&DevRecordDownload::toUpdateDownload,
+                     this,&DevRecordDownload::UpdataDownload);
 }
 
 DevRecordDownload::~DevRecordDownload()
@@ -19,10 +22,12 @@ void DevRecordDownload::UpdataDownload(int newSize)
         this->downloadedSize += newSize;
     }
     else{
-        this->downloadedSize = this->recordFileInfo.size;
+        this->downloadedSize = this->downloadTotalSize;
     }
-    this->cbDownloadPos(this->getHandler(),this->recordFileInfo.size,this->downloadedSize,this->userDownloadPos);
-    emit this->downloadPos(this->recordFileInfo.size,this->downloadedSize);
+    //qDebug("downloadsize %d,totalSize %d",this->downloadedSize,this->downloadTotalSize);
+    if(this->cbDownloadPos)
+        this->cbDownloadPos(this->getHandler(),this->downloadTotalSize,this->downloadedSize,this->userDownloadPos);
+    emit this->downloadPos(this->downloadTotalSize,this->downloadedSize);
 }
 
 int DevRecordDownload::DownloadRecordFile(NET_RECORDFILE_INFO recordFile, const char *sSavedFileName)
@@ -31,20 +36,25 @@ int DevRecordDownload::DownloadRecordFile(NET_RECORDFILE_INFO recordFile, const 
     this->setChannelID(recordFile.ch);
     this->recordFile = new QFile(sSavedFileName);
     if(!this->recordFile->open(QIODevice::WriteOnly)){
+        qWarning("open save record file error");
         return KE_File_Open_Error;
     }
     this->recordFileInfo = recordFile;
-    this->Request();
+    this->downloadedSize = 0;
+    this->downloadTotalSize = recordFile.size*1000;
+    int ret = this->Request();
+    if(ret != KE_SUCCESS){
+        return ret;
+    }
     if(!this->waitRespond()){
         return KE_Msg_Timeout;
     }
-
     return recordError;
 }
 
 int DevRecordDownload::GetDownloadPos(int *nTotalSize, int *nDownLoadSize)
 {
-    *nTotalSize = this->recordFileInfo.size;
+    *nTotalSize = this->downloadTotalSize;
     *nDownLoadSize = this->downloadedSize;
     return KE_SUCCESS;
 }
@@ -65,25 +75,31 @@ void DevRecordDownload::OnRespond(QByteArray &msgData)
     switch(respMsg->msgType)
     {
     case KEMSG_REQUEST_DOWNLOAD_FILE:
-        this->recordError = KE_NoRecord;
+    {
+        if(respMsg->resp == RESP_ACK)
+            this->recordError = KE_SUCCESS;
+        else
+            this->recordError = KE_NoRecord;
         this->wakeup();
+    }
         break;
     case KEMSG_RecordPlayData:
     {
-        if(this->recordError == -1)//first receive data
-        {
-            this->recordError = KE_SUCCESS;
-            this->wakeup();
-        }
+//        if(this->recordError == -1)//first receive data
+//        {
+//            this->recordError = KE_SUCCESS;
+//            this->wakeup();
+//        }
         if(respMsg->resp == RESP_END)//download end
         {
-            this->UpdataDownload(-1);
+           recordFile->close();
+           emit this->toUpdateDownload(-1);
         }
         else if(respMsg->resp == RESP_ACK)
         {
              int recordDataLen = respMsg->msgLength-sizeof(KEPlayRecordDataHead);
              recordFile->write(msgData.data()+sizeof(KEPlayRecordDataHead),recordDataLen);
-             this->UpdataDownload(recordDataLen);
+             emit this->toUpdateDownload(recordDataLen);
         }
 
     }
@@ -94,6 +110,10 @@ void DevRecordDownload::OnRespond(QByteArray &msgData)
 
 int DevRecordDownload::Request()
 {
+    if(!this->m_socketHandle->isValid()){
+        return KE_Network_Invalid;
+    }
+
     QByteArray msgSend;
     int msgLen = sizeof(KEPlayRecordFileReq);
     msgSend.resize(msgLen);
@@ -127,7 +147,7 @@ int DevRecordDownload::Request()
 
 bool DevRecordDownload::CheckAvaliable(int channelID)
 {
-    Device * devParent = qobject_cast<Device *>(this->parent());
+    Device * devParent = this->getParentDev();
     if(devParent == 0)
         return false;
     return devParent->CheckChannelAvaliable<DevRecordDownload *>(channelID);

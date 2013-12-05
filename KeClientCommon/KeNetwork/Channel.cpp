@@ -1,50 +1,79 @@
 #include "Channel.h"
 #include<QMutexLocker>
 #include "CommunicationThread.h"
-Channel::Channel(SocketHandler *s, ProtocalProcess *protocal, QObject *parent):
-    QObject(parent),opened(false),m_channelID(0)
+#include "SocketHandler.h"
+#include <QTimer>
+#include "Device.h"
+Channel::Channel():QObject(0)
+{
+    this->m_socketHandle = 0;
+    this->m_protocal = 0;
+    this->toHoldSocket = false;
+    this->setClientID(0);
+    this->setChannelID(0);
+    this->moveToThread(&ChannelTread::instance());
+    this->m_parentDev = 0;
+
+}
+
+Channel::Channel(SocketHandler *s, ProtocalProcess *protocal, Channel *parent):
+    QObject(0)
 {
     this->m_socketHandle = s;
     this->m_protocal = protocal;
     this->toHoldSocket = false;
-    //m_clientID = 0;
     this->setClientID(0);
-    //this->setChannelID(parent->getChannelID());
+    this->setChannelID(0);
 
-
+    this->moveToThread(&ChannelTread::instance());
+    this->m_parentDev = 0;
+    Device * d = qobject_cast<Device *>(parent);
+    if(d){
+        d->AddChannel(this);
+    }
 }
 
 Channel::Channel(Channel *parent):
-    QObject(parent),opened(false),m_channelID(0)
+    QObject(0)
 {
     this->m_socketHandle = parent->m_socketHandle;
     this->m_protocal = parent->m_protocal;
     this->toHoldSocket = false;
     this->setClientID(parent->getClientID());
     this->setChannelID(parent->getChannelID());
-
+    this->moveToThread(&ChannelTread::instance());
+    this->m_parentDev = 0;
+    Device * d = qobject_cast<Device *>(parent);
+    if(d){
+        d->AddChannel(this);
+    }
 }
 
 Channel::Channel(SocketHandler *s, Channel *parent):
-    QObject(parent),opened(false),m_channelID(0)
+    QObject(0)
 {
     this->m_socketHandle = s;
     this->m_protocal = parent->m_protocal;
     this->toHoldSocket = false;
     this->setClientID(parent->getClientID());
     this->setChannelID(parent->getChannelID());
-
+    this->moveToThread(&ChannelTread::instance());
+    this->m_parentDev = 0;
+    Device * d = qobject_cast<Device *>(parent);
+    if(d){
+        d->AddChannel(this);
+    }
 }
 
 Channel::~Channel()
 {
+    if(this->m_parentDev){
+        m_parentDev->RemoveChannel(this);
+    }
     if(toHoldSocket){
-        qDebug()<<"Channel::~Channel() to delete socket!";
-        delete this->m_socketHandle;
+        m_socketHandle->cleanUp();
     }
 }
-
-
 
 void Channel::setChannelID(int id)
 {
@@ -58,7 +87,7 @@ void Channel::setClientID(int id)
 
 
 
-void Channel::OnRespond(QByteArray &msgData)
+void Channel::OnRespond(QByteArray &)
 {
     qDebug()<<"the object "<<this->objectName()<<" not support OnRespond";
 }
@@ -79,6 +108,9 @@ void Channel::wakeup()
 
 int Channel::Request()
 {
+    if(!this->m_socketHandle->isValid()){
+        return KE_Network_Invalid;
+    }
     return 0;
 }
 

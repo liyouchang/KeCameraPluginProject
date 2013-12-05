@@ -1,5 +1,11 @@
 #include "Device.h"
-Device::Device(SocketHandler *s, ProtocalProcess *protocal, QObject *parent) :
+#include "KeProtocal/ProtocalProcess.h"
+
+Device::Device()
+{
+}
+
+Device::Device(SocketHandler *s, ProtocalProcess *protocal,Device * parent) :
     Channel(s,protocal,parent)
 {
 
@@ -8,40 +14,38 @@ Device::Device(SocketHandler *s, ProtocalProcess *protocal, QObject *parent) :
 Device::Device(SocketHandler *s, Device *parent):
     Channel(s,parent)
 {
-
 }
 
 Device::Device(Device *parent):
      Channel(parent)
 {
-
 }
 
 Device::~Device()
 {
+    for(int i=0;i<childrenChannel.size();++i){
+        delete childrenChannel[i];
+    }
+}
 
-
+void Device::GetMessageData(QByteArray &allBytes)
+{
+    this->m_protocal->ExtractMessage(allBytes,this);
 }
 
 bool Device::AddChannel(Channel *c)
 {
-     return true;
+    if(childrenChannel.contains(c)){
+        qWarning("Device::AddChannel allready have channel!");
+        return false;
+    }
+    childrenChannel.append(c);
+    c->m_parentDev = this;
+    return true;
 }
 
+bool Device::RemoveChannel(Channel *c)
+{
 
-//Channel *Device::GetChannel(int type, QString &name)
-//{
-//    Channel * find = 0;
-//    QList<Channel *> allChildren = this->findChildren<Channel *>(name);
-//    for(int i=0;i<allChildren.count();i++){
-//        if(qobject_cast<Device *>(allChildren.at(i) )){
-//            continue;
-//        }
-//        if(allChildren.at(i)->getType() == type){
-//            find = allChildren.at(i);
-//            break;
-//        }
-//    }
-//    return find;
-//}
-
+    return childrenChannel.removeOne(c);
+}

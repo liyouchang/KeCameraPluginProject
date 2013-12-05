@@ -12,13 +12,15 @@ class DevSimulateIPC :public Device, public SimulatorController
     Q_OBJECT
 public:
     explicit DevSimulateIPC(SocketHandler *s, Device *parent);
-    DevSimulateIPC(SocketHandler * s, ProtocalProcess *protocal, QObject *parent);
-
+    DevSimulateIPC(SocketHandler * s, ProtocalProcess *protocal, Device *parent);
+    ~DevSimulateIPC();
 signals:
-    void sendMedia(int channelNo,QByteArray&  data);
 public slots:
     // SimulatorController interface
-    int SendMediaData(int channelNo,const char *data, int len);
+    void SendMediaData(int channelNo,const char *data, int len);
+    void GetMessageData(QByteArray & allBytes);
+    virtual void DevDisconnect();
+    virtual void DevConnected();
 
     // Channel interface
 public:
@@ -38,13 +40,10 @@ public:
     int SetMac(std::string mac);
     int ConnectDevice(const std::string &addr, int port);
     int DisConnect();
+    int GetDeviceInfo(NET_DEVICEINFO *info);
+
 protected:
     void setAllSubDeviceID();
-    // Channel interface
-public slots:
-    void GetMessageData(QByteArray & allBytes);
-
-    // ConnectionController interface
 };
 
 #endif // DEVSIMULATEIPC_H

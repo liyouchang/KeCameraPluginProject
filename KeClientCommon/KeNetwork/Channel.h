@@ -8,13 +8,16 @@
 #include <QThread>
 #include <QByteArray>
 #include <QDebug>
+#include "kenet_global.h"
 class SocketHandler;
 class ProtocalProcess;
+class Device;
 class Channel : public QObject
 {
     Q_OBJECT
 public:
-    explicit Channel(SocketHandler * s,ProtocalProcess *m_protocal,QObject *parent);
+    Channel();
+    Channel(SocketHandler * s, ProtocalProcess *m_protocal,Channel * parent);
     Channel(Channel * parent);
     Channel(SocketHandler * s,Channel *parent);
     virtual ~Channel();
@@ -24,7 +27,6 @@ public slots:
     virtual void OnRespond(QByteArray & msgData);
 protected:
     bool toHoldSocket;
-    bool opened;
     int m_channelID;
     int m_clientID;
     QWaitCondition waitCondition;
@@ -32,9 +34,13 @@ protected:
     ProtocalProcess *m_protocal;
 
 public:
+    Device * m_parentDev;
+    Device * getParentDev(){return m_parentDev;}
+    void setParentDev(Device * p){this->m_parentDev = p;}
     SocketHandler * m_socketHandle;
     SocketHandler * getSocketHandle(){return m_socketHandle;}
     void setSocketHandle(SocketHandler * s){this->m_socketHandle = s;}
+
     int getChannelID(){return m_channelID;}
     virtual void setChannelID(int id);
     int getClientID(){return m_clientID;}

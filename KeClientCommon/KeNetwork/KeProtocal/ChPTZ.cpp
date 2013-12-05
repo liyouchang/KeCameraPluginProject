@@ -1,20 +1,17 @@
-#include "ChPTZ.h"
+﻿#include "ChPTZ.h"
 #include "KeMessage.h"
 #include "SocketHandler.h"
 ChPTZ::ChPTZ(Channel *parent) :
     Channel(parent)
 {
-    this->setChannelID(parent->getChannelID());
     this->cloudProtocal = 0;
     this->cloudAddr = 1;
-    this->setClientID(parent->getClientID());
-
 }
 
 void ChPTZ::OnRespond(QByteArray &msgData)
 {
     unsigned char  msgType = msgData[1];
-    switch(msgType)
+    switch(msgType  )
     {
     case DevMsg_SerialData:
     {
@@ -85,6 +82,10 @@ static int PCloudCMD[] = {0x0008,//0 上
 
 int ChPTZ::Request()
 {
+    if(!this->m_socketHandle->isValid()){
+        return KE_Network_Invalid;
+    }
+
     //        int ret = KE_SUCCESS;
 
     //        if (!ptzInfo.isgot)
@@ -105,7 +106,7 @@ int ChPTZ::Request()
 
     KEDevGetSerialDataHead * head = (KEDevGetSerialDataHead *)sendData.data();
     head->protocal = PROTOCOL_HEAD;
-    head->msgType = DevMsg_SETVIDEOPARAM;
+    head->msgType = DevMsg_SerialData;
     head->msgLength = sendData.size();
     head->videoID = this->getChannelID()/256;
     head->clientID = 0;

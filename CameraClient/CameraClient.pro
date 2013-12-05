@@ -11,15 +11,20 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = CameraClient
 TEMPLATE = app
 
-Debug:DESTDIR = $$PWD/../Debug
-Release:DESTDIR = $$PWD/../Release
+
 
 SOURCES += main.cpp\
         dialog.cpp \
+    TestDialog.cpp
 
 
 HEADERS  += dialog.h \
+    TestDialog.h
 
-
+Debug:DESTDIR = $$PWD/../Debug
+Release:DESTDIR = $$PWD/../Release
 include(../KeClientCommon/keClientCommon.pri)
+
+FORMS += \
+    TestDialog.ui
 

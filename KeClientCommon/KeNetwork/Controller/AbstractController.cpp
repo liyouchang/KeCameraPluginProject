@@ -26,6 +26,16 @@ bool AbstractController::CheckAvaliable(int channelID)
     return true;
 }
 
+void AbstractController::SetNetParam(NET_PARAM param)
+{
+    this->netParam = param;
+}
+
+NET_PARAM AbstractController::GetNetParam()
+{
+    return this->netParam;
+}
+
 
 void AbstractController::setHandler(int handle)
 {
@@ -35,6 +45,10 @@ void AbstractController::setHandler(int handle)
 AbstractController::AbstractController()
 {
     controlHandler = HandleManager::instance().AddObject(this);
+    this->netParam.connectTimeout = 3000;
+    this->netParam.waitTimeout = 3000;
+    this->netParam.connectTryNum = 1;
+    this->netParam.heartbeatIntervalTime = 10000;
 }
 
 AbstractController::~AbstractController()

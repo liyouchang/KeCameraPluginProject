@@ -4,6 +4,7 @@
 #include <QThread>
 #include "Controller/ConnectionController.h"
 #include "Simulator/SimulatorController.h"
+#include <QList>
 enum ErrorMsgType;
 
 class VideoFileReader : public QThread
@@ -11,6 +12,7 @@ class VideoFileReader : public QThread
     Q_OBJECT
 public:
     explicit VideoFileReader(QObject *parent = 0);
+    ~VideoFileReader();
     bool toStop;
     SimulatorController * ipc;
 signals:

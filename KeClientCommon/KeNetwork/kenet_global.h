@@ -1,16 +1,16 @@
-#ifndef KENET_GLOBAL_H
+﻿#ifndef KENET_GLOBAL_H
 #define KENET_GLOBAL_H
-
 #if (defined(WIN32) || defined(WIN64))
 
 #if defined(KENETSDK_LIBRARY)
-#  define KENETSDKSHARED_EXPORT  __declspec(dllexport)
+#define KENETSDKSHARED_EXPORT  __declspec(dllexport)
 #else
 #  define KENETSDKSHARED_EXPORT __declspec(dllimport)
 #endif
 
 #define CALLBACK __stdcall
 #define CALL_METHOD  __stdcall  //__cdecl
+
 
 #else
 
@@ -32,10 +32,11 @@
 #define KE_NETWORK_ERROR			_EC(2)		//
 #define KE_NETCONNECT_ERROR		_EC(3)		//
 #define KE_NETWRITE_ERROR          _EC(4)
-#define KE_Msg_Timeout     _EC(5)  //message timeout
-#define KE_Login_ERROR     _EC(6)  //message timeout
+#define KE_Network_Invalid _EC(5) //not connect to host
+#define KE_Msg_Timeout     _EC(6)  //message timeout
+
 #define KE_Wrong_Control    _EC(7) //id is wrong
-#define KE_Not_Support_Function    _EC(8) //id is wrong
+#define KE_Not_Support_Function    _EC(8) //
 #define KE_File_Open_Error      _EC(9) // file not open
 #define KE_No_Initial   _EC(10) //function need initial instance
 #define KE_Parameter_Error _EC(11)
@@ -43,6 +44,10 @@
 #define KE_NoRecord  _EC(13)
 #define KE_Channel_NotFree _EC(14) //channel is in used
 #define KE_CreateInstance_Error _EC(15) //create instance error
+#define KE_Login_Error     _EC(16)
+#define KE_Relogin     _EC(17)
+#define KE_Not_Login _EC(18)
+
 /************************************************************************
  ** 枚举定义
  ***********************************************************************/
@@ -50,10 +55,15 @@
 enum DeviceType{
     KE_DevType_None,
     KE_DevType_DVR,
-    KE_DevType_08SERVER,
+    KE_DevType_08Client,
+    KE_DevType_08Proxy,
     KE_IPC_Simulator
+
 };
-enum CallBackType{
+enum ConnectStatus{
+    Connect_Success = 0,//connected
+    Connect_Miss = 1,//disconnect
+    Connect_Again = 2//reconnect
 
 };
 enum KE_RealDataType{
@@ -61,6 +71,13 @@ enum KE_RealDataType{
     KE_DataType_Audio
 };
 enum KE_RecordFileType{
+    KE_Terminal_All_Record = 0,//终端录像
+    KE_Terminal_Plan_Record = 1,//终端计划录像
+    KE_Terminal_Senser_Record = 2,//终端传感器报警录像
+    KE_Terminal_Motion_Record = 3,//终端移动侦测报警录像
+    KE_Terminal_Picture_Record = 4,//终端抓拍照片
+
+    KE_Center_All_Record = 10
     //0：普通录象；1：报警录象；2：移动检测；3：卡号录象；4：图片
 };
 
@@ -87,19 +104,11 @@ enum EM_REALPLAY_DISCONNECT_EVENT_TYPE
 // 设置登入时的相关参数
 struct NET_PARAM
 {
-    int                 waittime;				// 等待超时时间(毫秒为单位)，为0默认5000ms
-    int                 connectTime;			// 连接超时时间(毫秒为单位)，为0默认1500ms
-    int                 connectTryNum;			// 连接尝试次数，为0默认1次
-    int                 subConnectSpaceTime;	// 子连接之间的等待时间(毫秒为单位)，为0默认10ms
-    int                 getDevInfoTime;		// 获取设备信息超时时间，为0默认1000ms
-    int					connectBufSize;		// 每个连接接收数据缓冲大小(字节为单位)，为0默认250*1024
-    int					getConnInfoTime;		// 获取子连接信息超时时间(毫秒为单位)，为0默认1000ms
-    int                 searchRecordTime;      // 按时间查询录像文件的超时时间(毫秒为单位),为0默认为3000ms
-    int                 subDisconnetTime;      // 检测子链接断线等待时间(毫秒为单位)，为0默认为60000ms
-    char				netType;				// 网络类型, 0-LAN, 1-WAN
-    char                reserved1[3];         // 对齐
-    int                 picBufSize;            // 实时图片接收缓冲大小（字节为单位），为0默认为2*1024*1024
-    char				reserved[4];			// 保留字段
+    int waitTimeout;				// 等待超时时间(毫秒为单位)，为0默认5000ms
+    int connectTimeout;			// 连接超时时间(毫秒为单位)，为0默认1500ms
+    int connectTryNum;			// 连接尝试次数，为0默认1次
+    int heartbeatIntervalTime;  //心跳间隔时间,default 10s/次
+    int realDataType;   //0:kaer real data;1:normal h264.default:0
 };
 
 struct NET_TIME
@@ -128,14 +137,29 @@ struct NET_RECORDFILE_INFO
     int reserved[4];// 保留字段
 };
 // 设备信息
+struct NET_ChannelInfo{
+    int type;//0:通道,1:报警器
+    int enable;//0:无效,1:有效
+    char channelName[40];
+};
+
 struct NET_DEVICEINFO
 {
-    char				sSerialNumber[32];	// 序列号
-    char				byAlarmInPortNum;		// DVR报警输入个数
-    char                byAlarmOutPortNum;		// DVR报警输出个数
-    char				byDiskNum;				// DVR硬盘个数
-    char				byDVRType;				// DVR类型, 见枚举DHDEV_DEVICE_TYPE
-    char				byChanNum;				// DVR通道个数
+    char szIp[16];							//终端ip地址
+    char szMask[16];						//终端子网掩码
+    char szGateway[16];						//终端网关
+    char deviceName[40];                    //终端名称
+    char deviceSN[20];                      //设备标志码
+    int  hardwareVer;						//硬件型号
+    char softwareVer[10];                   //软件版本号
+    int  iPort;								//端口号
+    char szUsrName[12];						//登录用户名
+    char szUsrPwd[12];						//登录密码
+    int  channelCount;                      //通道数
+    NET_ChannelInfo channelInfoArray[32];   //通道信息
+    //    int  iTerminalType;						//终端型号 0:KESV 1:KEJM01(解码器) 2:KEDVR 3:KECAM01
+    //    char bDNS;								//1: 使用DNS, 0: 使用IP
+    //    char szDnsName[260];					//DNS名称
 };
 
 struct DeviceTreeNode{
@@ -145,6 +169,7 @@ struct DeviceTreeNode{
     char name[64];
     void * instance;
 };
+
 struct KEAlarmInfo{
     int channelID;
     char state;//状态0/1=开始/结束

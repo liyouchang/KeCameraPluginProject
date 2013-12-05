@@ -6,6 +6,8 @@
 #include "DevRecordQuery.h"
 #include "DevConnection.h"
 #include <QByteArray>
+
+
 class DevRealPlay;
 class ProtocalProcess : public QObject
 {
@@ -16,7 +18,7 @@ public:
 signals:
 
 public slots:
-    virtual void ExtractMessage(QByteArray & allBytes, Device *parser);
+    virtual void ExtractMessage(QByteArray & allBytes, Channel *parser);
 public:
     virtual QByteArray CreateMessage(ChRealData *ch);
     virtual QByteArray CreateMessage(DevRealPlay *ch);

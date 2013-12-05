@@ -26,7 +26,7 @@ AlarmController *AlarmController::CreateInstance(AbstractController *parent)
        controller =  new DevAlarm(parentDev);
     }
         break;
-    case KE_DevType_08SERVER:
+    case KE_DevType_08Client:
         break;
     }
 

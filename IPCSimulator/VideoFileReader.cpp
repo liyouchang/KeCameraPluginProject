@@ -6,11 +6,18 @@
 #include <QDebug>
 #include "mainwindow.h"
 #include "KeProtocal/KeMessage.h"
+#include "KeErrorText.h"
 VideoFileReader::VideoFileReader(QObject *parent) :
     QThread(parent)
 {
     this->toStop = false;
     this->ipc = 0;
+}
+
+VideoFileReader::~VideoFileReader()
+{
+    this->toStop = true;
+    this->wait(1000);
 }
 
 void VideoFileReader::NewSimulater(ConnectionController *parent)
@@ -45,10 +52,10 @@ void VideoFileReader::fileReader()
         }
         KEFrameHead * pHead = (KEFrameHead *)(videobuf + bufPos);
         int frameLen = pHead->frameLen + sizeof(KEFrameHead);
-        if(ipc != 0){
-          ipc->SendMediaData(1,videobuf + bufPos,frameLen);
-        }
-        //emit sendFileData(1,videobuf + bufPos,frameLen);
+//        if(ipc != 0){
+//          ipc->SendMediaData(1,videobuf + bufPos,frameLen);
+//        }
+        emit sendFileData(1,videobuf + bufPos,frameLen);
         if(lastFrameNo == 0){
             lastFrameNo = pHead->frameNo;
         }
@@ -56,7 +63,7 @@ void VideoFileReader::fileReader()
         if(pHead->frameNo != lastFrameNo){
             //qDebug()<<QString("frame %1 sended.").arg(lastFrameNo);
             //emit errorMessage(QString("frame %1 sended.").arg(lastFrameNo),EMsg_Info);
-            QThread::msleep(40);
+            QThread::msleep(50);
             lastFrameNo = pHead->frameNo;
 
         }

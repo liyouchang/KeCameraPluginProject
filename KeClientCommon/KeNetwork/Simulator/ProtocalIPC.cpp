@@ -20,10 +20,7 @@ void ProtocalIPC::ParseMessage(QByteArray &msgData, DevConnection *ch)
     case KEMSG_TYPE_VIDEOSTREAM:
     case KEMSG_TYPE_AUDIOSTREAM:
     {
-        QList<DevSimulateIPC *> listCommand =  ch->findChildren<DevSimulateIPC *>();
-        for (int i = 0; i < listCommand.size(); ++i) {
-            listCommand.at(i)->OnRespond(msgData);
-        }
+        ch->ChildrenRespondMsg<DevSimulateIPC *>(msgData);
     }
         break;
     case KEMSG_RecordFileList:
@@ -90,11 +87,11 @@ QByteArray ProtocalIPC::CreateMessage(ChSimulateVideo *ch)
     msgSend.append(ch->mediaData);
 
     KEFrameHead * pFrame = (KEFrameHead *)ch->mediaData.data();
-    int mediaFormat = pFrame->frameType & 0x7f;
+    ch->mediaFormat = pFrame->frameType & 0x7f;
     ch->currentFrameNo = pFrame->frameNo;
     KERTStreamHead * pReqMsg = (KERTStreamHead *)msgSend.data();
     pReqMsg->protocal = PROTOCOL_HEAD;
-    pReqMsg->msgType = mediaFormat<30 ? KEMSG_TYPE_VIDEOSTREAM:KEMSG_TYPE_AUDIOSTREAM;
+    pReqMsg->msgType = ch->mediaFormat < 30 ? KEMSG_TYPE_VIDEOSTREAM:KEMSG_TYPE_AUDIOSTREAM;
     pReqMsg->msgLength = msgSend.size();
     pReqMsg->channelNo = ch->getChannelID()%256;
     pReqMsg->videoID = ch->getChannelID()/256;

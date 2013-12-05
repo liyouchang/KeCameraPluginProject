@@ -20,8 +20,8 @@ public:
 signals:
 
 public slots:
-    void sendMedia(int channelNo, QByteArray & mediaData);
-
+    void sendMedia(QByteArray  mediaData);
+    void VideoDisconnected();
     // Channel interface
 public:
     void OnRespond(QByteArray & data);
@@ -31,6 +31,7 @@ public:
     QByteArray mediaData;
     short currentFrameNo;
     short lastFrameNo;
+    int mediaFormat;
     int mediaType;
 };
 

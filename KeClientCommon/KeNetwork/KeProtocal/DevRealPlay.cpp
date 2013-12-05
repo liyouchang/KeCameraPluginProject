@@ -14,7 +14,17 @@ DevRealPlay::DevRealPlay(Device *parent) :
     this->cbRealData = 0;
     this->userRealData = 0;
     this->setChannelID(0);
+    m_videoSocket = new SocketHandler();
+    QObject::connect(m_videoSocket,&SocketHandler::sdReadedData,
+                     this,&DevRealPlay::GetMessageData,
+                     Qt::DirectConnection);
+    this->m_realTimeout = 3000;
 
+}
+
+DevRealPlay::~DevRealPlay()
+{
+    m_videoSocket->cleanUp();
 }
 
 void DevRealPlay::MediaDataRecv(int cameraID, int dataType, QByteArray data)
@@ -27,19 +37,35 @@ void DevRealPlay::MediaDataRecv(int cameraID, int dataType, QByteArray data)
 
 int DevRealPlay::StartRealPlay(int channelID)
 {
+    if(!this->m_socketHandle->isValid()){
+        return KE_Network_Invalid;
+    }
+
     if(m_channelID == 0){
-        m_channelID = channelID;
-        int ret = this->Request();
+        m_videoSocket->CreateSocket();
+
+        int ret = m_videoSocket->ConnectToAddr(
+                    this->m_socketHandle->m_addr,
+                    this->m_socketHandle->m_port,
+                    this->m_realTimeout);
+        if(ret != KE_SUCCESS){
+            return ret;
+        }
+        this->setChannelID(this->m_channelID*256+channelID);
+        this->chVideo = new ChAskVideo(m_videoSocket,this);
+        this->chVideo->m_mediaType |= Media_Vedio;
+        ret = this->chVideo->Request();
         if(ret != 0){
             qWarning("Real start request error!");
             return ret;
         }
-        if(!this->waitRespond()){
+        if(!this->chVideo->waitRespond(this->m_realTimeout)){
             qWarning("wait StartRealPlay respond error!");
             return KE_Msg_Timeout;
         }
-        chRealData = new ChRealData(channelID,this);
-        QObject::connect(chRealData,&ChRealData::recvMediaData,this,&DevRealPlay::MediaDataRecv);
+        this->chRealData = new ChRealData(m_videoSocket,this);
+        QObject::connect(this->chRealData,&ChRealData::recvMediaData,
+                         this,&DevRealPlay::MediaDataRecv);
     }
 
     return KE_SUCCESS;
@@ -47,10 +73,9 @@ int DevRealPlay::StartRealPlay(int channelID)
 
 int DevRealPlay::StopRealPlay()
 {
-    if(this->chRealData == 0){
+    if(this->m_channelID == 0){
         return KE_No_Initial;
     }
-    m_channelID = 0;
     delete this;
     return KE_SUCCESS;
 }
@@ -98,12 +123,12 @@ int DevRealPlay::StopSaveRealData()
 
 int DevRealPlay::StartSound()
 {
-    if(this->chRealData == 0){
+    if(this->chVideo == 0){
         return KE_No_Initial;
     }
-    this->m_mediaType |= Media_Listen;
-    this->Request();
-    if(!this->waitRespond()){
+    this->chVideo->m_mediaType |= Media_Listen;
+    this->chVideo->Request();
+    if(!this->chVideo->waitRespond(this->m_realTimeout)){
         qWarning("wait StartRealPlay respond error!");
         return KE_Msg_Timeout;
     }
@@ -112,12 +137,12 @@ int DevRealPlay::StartSound()
 
 int DevRealPlay::StopSound()
 {
-    if(this->chRealData == 0){
+    if(this->chVideo == 0){
         return KE_No_Initial;
     }
-    this->m_mediaType &= ~Media_Listen;
-    this->Request();
-    if(!this->waitRespond()){
+    this->chVideo->m_mediaType &= ~Media_Listen;
+    this->chVideo->Request();
+    if(!this->chVideo->waitRespond(this->m_realTimeout)){
         qWarning("wait StartRealPlay respond error!");
         return KE_Msg_Timeout;
     }
@@ -126,12 +151,12 @@ int DevRealPlay::StopSound()
 
 int DevRealPlay::StartTalk()
 {
-    if(this->chRealData == 0){
+    if(this->chVideo == 0){
         return KE_No_Initial;
     }
-    this->m_mediaType |= Media_Talk;
-    this->Request();
-    if(!this->waitRespond()){
+    this->chVideo->m_mediaType |= Media_Talk;
+    this->chVideo->Request();
+    if(!this->chVideo->waitRespond(this->m_realTimeout)){
         qWarning("wait StartRealPlay respond error!");
         return KE_Msg_Timeout;
     }
@@ -154,9 +179,9 @@ int DevRealPlay::StopTalk()
     if(this->chRealData == 0){
         return KE_No_Initial;
     }
-    this->m_mediaType &= ~Media_Talk;
-    this->Request();
-    if(!this->waitRespond()){
+    this->chVideo->m_mediaType &= ~Media_Talk;
+    this->chVideo->Request();
+    if(!this->chVideo->waitRespond(this->m_realTimeout)){
         qWarning("wait StartRealPlay respond error!");
         return KE_Msg_Timeout;
     }
@@ -165,25 +190,32 @@ int DevRealPlay::StopTalk()
 
 int DevRealPlay::PTZControl(int PTZCommand, int step, int stop)
 {
-    if(this->chRealData == 0){
+    if(this->m_channelID == 0){
         return KE_No_Initial;
     }
     if(PTZCommand > 31 || PTZCommand < 0){
         return KE_Parameter_Error;
     }
-    ChPTZ * ptz = this->findChild<ChPTZ *>();
+    ChPTZ * ptz = this->GetChannel<ChPTZ *>();
     if(ptz == 0){
         ptz = new ChPTZ(this);
     }
     ptz->cloudCmd = PTZCommand;
     ptz->cloudSpeed = step;
-    ptz->Request();
-    if(!this->waitRespond()){
-        qWarning("wait StartRealPlay respond error!");
-        return KE_Msg_Timeout;
-    }
-    return 0;
+    return ptz->Request();
+    //    if(!ptz->waitRespond()){
+    //        qWarning("wait PTZControl respond error!");
+    //        return KE_Msg_Timeout;
+    //    }
+
 }
+
+void DevRealPlay::SetTimeout(int time)
+{
+    this->m_realTimeout =  time;
+}
+
+
 
 QString DevRealPlay::CreateNameByParam(int channelID)
 {
@@ -203,14 +235,19 @@ void DevRealPlay::OnRespond(QByteArray &data)
 }
 int DevRealPlay::Request()
 {
-    QByteArray msgSend = this->m_protocal->CreateMessage(this);
-    int ret = this->m_socketHandle->WriteData(msgSend);
-    return ret;
+    if(!this->m_socketHandle->isValid()){
+        return KE_Network_Invalid;
+    }
+//    QByteArray msgSend = this->m_protocal->CreateMessage(this);
+//    int ret = this->m_socketHandle->WriteData(msgSend);
+//    return ret;
+    return KE_SUCCESS;
 }
 
 bool DevRealPlay::CheckAvaliable(int channelID)
 {
-    Device * devParent = qobject_cast<Device *>(this->parent());
+   // Device * devParent = qobject_cast<Device *>(this->parent());
+    Device * devParent = this->getParentDev();
     if(devParent == 0)
         return false;
     return devParent->CheckChannelAvaliable<DevRealPlay *>(channelID);

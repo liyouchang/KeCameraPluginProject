@@ -7,7 +7,9 @@
 QT       -= gui
 
 TARGET = KENetSDK
+
 TEMPLATE = lib
+
 
 DEFINES += KENETSDK_LIBRARY
 
@@ -24,4 +26,6 @@ unix:!symbian {
     INSTALLS += target
 }
 
+Debug:DESTDIR = $$PWD/../Debug
+Release:DESTDIR = $$PWD/../Release
 include(../KeClientCommon/KeNetwork/KeNetwork.pri)

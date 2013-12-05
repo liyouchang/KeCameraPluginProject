@@ -15,6 +15,13 @@ public slots:
     // QTcpServer interface
 protected:
     void incomingConnection(qintptr handle);
+    //self used signal
+signals:
+    void sbListenConnect(quint16 port );
+public slots:
+    void sListenConnect( quint16 port = 0);
+
+
 };
 
 #endif // TCPLISTENER_H

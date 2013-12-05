@@ -25,4 +25,6 @@ HEADERS  += mainwindow.h \
 
 FORMS    += mainwindow.ui
 include(../KeClientCommon/KeNetwork/KeNetwork.pri)
+include(../KeClientCommon/MyControl/MyControl.pri)
+
 )

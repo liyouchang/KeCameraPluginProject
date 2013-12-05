@@ -14,26 +14,46 @@ DevSimulateIPC::DevSimulateIPC(SocketHandler *s, Device *parent):
     m_chLogin = 0;
     m_chKey = 0;
     this->toHoldSocket = true;
+    QObject::connect(m_socketHandle,&SocketHandler::sdReadedData,
+                 this,&DevSimulateIPC::GetMessageData,
+                 Qt::DirectConnection);
 
+    QObject::connect(m_socketHandle,&SocketHandler::saDisConnected,
+                     this,&DevSimulateIPC::DevDisconnect);
+    QObject::connect(m_socketHandle,&SocketHandler::saConnected,
+                     this,&DevSimulateIPC::DevConnected);
 }
 
-DevSimulateIPC::DevSimulateIPC(SocketHandler *s, ProtocalProcess *protocal, QObject *parent):
+DevSimulateIPC::DevSimulateIPC(SocketHandler *s, ProtocalProcess *protocal,Device * parent):
      Device(s,protocal,parent)
 {
     m_chLogin = 0;
     m_chKey = 0;
     this->toHoldSocket = true;
+    QObject::connect(m_socketHandle,&SocketHandler::sdReadedData,
+                 this,&DevSimulateIPC::GetMessageData,
+                 Qt::DirectConnection);
+
+    QObject::connect(m_socketHandle,&SocketHandler::saDisConnected,
+                     this,&DevSimulateIPC::DevDisconnect);
+    QObject::connect(m_socketHandle,&SocketHandler::saConnected,
+                     this,&DevSimulateIPC::DevConnected);
+
 }
 
-int DevSimulateIPC::SendMediaData(int channelNo, const char *data, int len)
+DevSimulateIPC::~DevSimulateIPC()
 {
+    delete this->m_protocal;
+}
 
+void DevSimulateIPC::SendMediaData(int channelNo, const char *data, int len)
+{
     QByteArray mediaData(data,len);
-    QList<DevVideoSvr *> listCommand =  this->findChildren<DevVideoSvr *>();
+    //emit sendMedia(channelNo,mediaData);
+    QList<DevVideoSvr *> listCommand =  this->GetChannelList<DevVideoSvr *>();
     for(int i = 0; i < listCommand.size(); ++i) {
         listCommand[i]->sendMedia(channelNo,mediaData);
     }
-    return 0;
 }
 
 void DevSimulateIPC::OnRespond(QByteArray &msgData)
@@ -83,11 +103,11 @@ int DevSimulateIPC::LoginServer(std::string username, std::string pwd)
     m_chLogin->setChannelID(this->getChannelID());
     m_chLogin->Request();
     if(!m_chLogin->waitRespond()){
-        qWarning("login message response timeout");
+        qWarning()<<"login message response timeout,mac:"<<m_mac;
         return KE_Msg_Timeout;
     }
     if(m_chLogin->result != RESP_ACK){
-        return KE_Login_ERROR;
+        return KE_Login_Error;
     }
     //set sub device id
     setAllSubDeviceID();
@@ -104,6 +124,7 @@ int DevSimulateIPC::Logout()
 int DevSimulateIPC::SetMac(std::string mac)
 {
     this->m_mac = QString::fromLatin1(mac.c_str());
+
     if(m_chKey == 0){
         m_chKey = new ChDeviceKey(this);
     }
@@ -115,24 +136,23 @@ int DevSimulateIPC::ConnectDevice(const std::string &addr, int port)
 {
     QString name = QString::fromStdString(addr);
     int ret =   m_socketHandle->ConnectToHost(name,port);
-
-    if(ret == KE_SUCCESS){
-
-        QObject::connect(m_socketHandle,&SocketHandler::sdReadedData,
-                     this,&DevSimulateIPC::GetMessageData,
-                     Qt::DirectConnection);
-    }
     return ret;
 }
 
 int DevSimulateIPC::DisConnect()
 {
-    return 0;
+    //toReconnect = false;
+    return this->m_socketHandle->DisConnectFromHost();
+}
+
+int DevSimulateIPC::GetDeviceInfo(NET_DEVICEINFO *info)
+{
+    return KE_Not_Support_Function;
 }
 
 void DevSimulateIPC::setAllSubDeviceID()
 {
-    QList<Device *> listCommand =  this->findChildren<Device *>();
+    QList<Device *> listCommand =  this->GetChannelList<Device *>();
     for (int i = 0; i < listCommand.size(); ++i) {
         listCommand[i]->setChannelID(this->getChannelID());
     }
@@ -141,4 +161,16 @@ void DevSimulateIPC::setAllSubDeviceID()
 void DevSimulateIPC::GetMessageData(QByteArray &allBytes)
 {
     this->m_protocal->ExtractMessage(allBytes,this);
+}
+
+void DevSimulateIPC::DevDisconnect()
+{
+    qDebug("DevSimulateIPC::DevDisconnect delete connection");
+    delete this;
+}
+
+void DevSimulateIPC::DevConnected()
+{
+    qDebug("DevSimulateIPC::DevConnected connect");
+
 }

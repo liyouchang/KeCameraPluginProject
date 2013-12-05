@@ -8,15 +8,16 @@ class ChSecretKey : public Channel
     Q_OBJECT
 public:
     explicit ChSecretKey(Channel *parent = 0);
+    QByteArray m_skey;
 
 signals:
     // Channel interface
 public slots:
-    void OnRespond(QByteArray &data);
+    void OnRespond(QByteArray &msgData);
 
 public:
     int Request();
-    char key[8];
+    //char key[8];
 };
 
 #endif // CHSECRETKEY_H

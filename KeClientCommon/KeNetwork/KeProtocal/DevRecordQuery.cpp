@@ -1,4 +1,4 @@
-#include "DevRecordQuery.h"
+﻿#include "DevRecordQuery.h"
 #include "KeMessage.h"
 #include "SocketHandler.h"
 #include "kenet_global.h"
@@ -37,10 +37,10 @@ bool operator >= (const NET_TIME &a,const NET_TIME& b )
         return true;
     if(a.second < b.second)
         return false;
-    if(a.millisecond > b.millisecond)
-        return true;
-    if(a.millisecond < b.millisecond)
-        return false;
+//    if(a.millisecond > b.millisecond)
+//        return true;
+//    if(a.millisecond < b.millisecond)
+//        return false;
 
     return true;
 }
@@ -66,42 +66,91 @@ void DevRecordQuery::SetQueryType(int recordFileType)
 int DevRecordQuery::QueryRecordFile(int channelID, std::vector<NET_RECORDFILE_INFO> &vFileInfo)
 {
     this->setChannelID(channelID);
-    this->recordFileList.clear();
+    //this->recordFileList.clear();
     this->findEnd = false;
     do{
+        qDebug("query record start time %d:%d:%d; end time %d:%d:%d",
+               this->m_startTime.hour,this->m_startTime.minute,this->m_startTime.second,
+               this->m_endTime.hour,this->m_endTime.minute,this->m_endTime.second);
+        this->recordFileList.clear();
         this->Request();
         if(!this->waitRespond(m_queryTimeout)){
             return KE_Msg_Timeout;
         }
+        if(this->recordFileList.empty()){
+            qDebug("find empty");
+            break;
+        }
+
+        if(recordFileList.size() == 1 && !vFileInfo.empty()){
+            NET_RECORDFILE_INFO allLast = vFileInfo.back();
+            NET_RECORDFILE_INFO oneLast = this->recordFileList.back();
+            if(allLast.fileNo != oneLast.fileNo){
+                vFileInfo.push_back(oneLast);
+            }
+        }
+        else{
+            for(int i = 0;i<recordFileList.size();i++){
+                vFileInfo.push_back(this->recordFileList[i]);
+            }
+        }
+
+
         NET_RECORDFILE_INFO lastRecord = this->recordFileList.back();
-        if(lastRecord.endtime >= this->m_endTime){
+        if(lastRecord.endtime >= this->m_endTime ||
+                this->m_startTime >= lastRecord.endtime)
+        {
+            qDebug("find end");
             this->findEnd = true;
         }
         else{
             this->m_startTime = lastRecord.endtime;
         }
     }while(!this->findEnd);
-    vFileInfo = this->recordFileList;
+ //   vFileInfo = this->recordFileList;
     return 0;
 }
 
 int DevRecordQuery::QuickQueryRecordFile(int channelID, std::vector<NET_RECORDFILE_INFO> &vFileInfo)
 {
     this->setChannelID(channelID);
+    this->findEnd = false;
     do{
+        this->recordFileList.clear();
         this->Request();
         if(!this->waitRespond(m_queryTimeout)){
             return KE_Msg_Timeout;
         }
-        NET_RECORDFILE_INFO lastRecord = this->recordFileList.back();
-        if(recordFileList.size() > 16 ||lastRecord.endtime >= this->m_endTime){
-            this->findEnd = true;
+        if(recordFileList.empty()){
+            break;
+        }
+        if(recordFileList.size() == 1 && !vFileInfo.empty()){
+            NET_RECORDFILE_INFO allLast = vFileInfo.back();
+            NET_RECORDFILE_INFO oneLast = this->recordFileList.back();
+            if(allLast.fileNo != oneLast.fileNo){
+                vFileInfo.push_back(oneLast);
+            }
         }
         else{
+            for(int i = 0;i<recordFileList.size();i++){
+                vFileInfo.push_back(this->recordFileList[i]);
+            }
+        }
+
+        NET_RECORDFILE_INFO lastRecord = this->recordFileList.back();
+
+        if(vFileInfo.size() > 16 ||
+                lastRecord.endtime >= this->m_endTime||
+                this->m_startTime >= lastRecord.endtime)
+        {
+            this->findEnd = true;
+        }
+        else
+        {
             this->m_startTime = lastRecord.endtime;
         }
     }while(!this->findEnd);
-    vFileInfo = this->recordFileList;
+    //vFileInfo = this->recordFileList;
     return 0;
 }
 void DevRecordQuery::OnRespond(QByteArray &data)
@@ -111,6 +160,10 @@ void DevRecordQuery::OnRespond(QByteArray &data)
 
 int DevRecordQuery::Request()
 {
+    if(!this->m_socketHandle->isValid()){
+        return KE_Network_Invalid;
+    }
+
     QByteArray msgSend;
     int msgLen = sizeof(KERecordFileListReq);
     msgSend.resize(msgLen);
@@ -158,26 +211,33 @@ int DevRecordQuery::FindStart(int channelID)
 
 int DevRecordQuery::FindNext(NET_RECORDFILE_INFO *lpFindData)
 {
-    if(this->recordPos >= this->recordFileList.size()){
-        if(this->m_startTime >= this->m_endTime)
+    if(this->findEnd ){
+        qDebug("record find end,record find end !");
+        return KE_Record_Find_End;
+    }
+    //check if we have queryed record list, if no record left, query record again
+    if(this->recordPos >= this->recordFileList.size())
+    {
+        //record end when start time >= end time
+        if(this->m_startTime >= this->m_endTime){
+            qDebug("record find end,starttime>=endtime !");
             return KE_Record_Find_End;
-
+        }
         this->recordFileList.clear();
         recordPos = 0;
         this->Request();
         if(!this->waitRespond(m_queryTimeout)){
+            qWarning("wait query record respond error!");
             return KE_Msg_Timeout;
         }
-        if(this->findEnd){
+        if(this->recordFileList.empty()){
+            qDebug("record find end,record file empty !");
+            findEnd = true;
             return KE_Record_Find_End;
         }
         NET_RECORDFILE_INFO lastRecord = this->recordFileList.back();
         this->m_startTime =lastRecord.endtime;
     }
-    if(this->recordFileList.empty()){
-        return KE_Record_Find_End;
-    }
-
     *lpFindData = this->recordFileList[this->recordPos++];
 
     return KE_SUCCESS;
@@ -191,7 +251,7 @@ int DevRecordQuery::FindClose()
 
 bool DevRecordQuery::CheckAvaliable(int channelID)
 {
-    Device * devParent = qobject_cast<Device *>(this->parent());
+    Device * devParent = this->getParentDev();
     if(devParent == 0)
         return false;
     return devParent->CheckChannelAvaliable<DevRecordQuery *>(channelID);

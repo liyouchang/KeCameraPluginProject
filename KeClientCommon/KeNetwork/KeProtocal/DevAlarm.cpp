@@ -10,16 +10,17 @@ DevAlarm::DevAlarm(Device *parent) :
 void DevAlarm::OnRespond(QByteArray &msgData)
 {
     unsigned char  msgType = msgData[1];
+    qDebug("receive alarm %d!",msgType);
     switch(msgType)
     {
     case KEDevMsg_AlarmSenser:
     {
         KEAlarmSenserReq * pMsg = (KEAlarmSenserReq *)msgData.data();
         int cameraID = CreateCameraID(pMsg->videoID,pMsg->channelNo);
-        if(this->getChannelID() != pMsg->videoID){
-            qDebug("DevAlarm::OnRespond pu id error");
-            return;
-        }
+//        if(this->getChannelID() != pMsg->videoID){
+//            qDebug("DevAlarm::OnRespond pu id error");
+//            return;
+//        }
         this->alarmType =Alarm_Sensor;
         this->alarmInfo.channelID = cameraID;
         this->alarmInfo.state = pMsg->state;
@@ -27,7 +28,8 @@ void DevAlarm::OnRespond(QByteArray &msgData)
         this->alarmInfo.msecond = pMsg->msecond;
         this->alarmInfo.number = pMsg->number;
 
-        emit toDoRespond();
+        QByteArray data((char *)&this->alarmInfo,sizeof(KEAlarmInfo));
+        emit toDoRespond(this->alarmType,data);
 
     }
         break;
@@ -35,10 +37,10 @@ void DevAlarm::OnRespond(QByteArray &msgData)
     {
         KEAlarmVideoReq * pMsg = (KEAlarmVideoReq *)msgData.data();
         int cameraID = CreateCameraID(pMsg->videoID,pMsg->channelNo);
-        if(this->getChannelID() != pMsg->videoID){
-            qDebug("DevAlarm::OnRespond pu id error");
-            return;
-        }
+//        if(this->getChannelID() != pMsg->videoID){
+//            qDebug("DevAlarm::OnRespond pu id error");
+//            return;
+//        }
         this->alarmType =pMsg->type;
         this->alarmInfo.channelID = cameraID;
         this->alarmInfo.state = pMsg->state;
@@ -47,21 +49,29 @@ void DevAlarm::OnRespond(QByteArray &msgData)
         this->alarmInfo.number = pMsg->number;
         memcpy(this->alarmInfo.coordinate,pMsg->coordinate,9);
 
-        emit toDoRespond();
-
+        QByteArray data((char *)&this->alarmInfo,sizeof(KEAlarmInfo));
+        emit toDoRespond(this->alarmType,data);
     }
         break;
     default:break;
     }
 }
 
-void DevAlarm::DoRespond()
+void DevAlarm::DoRespond(int alarmType,QByteArray info)
 {
+    //response alarm message
     this->Request();
+    if(this->cbAlarm){
+        this->cbAlarm(this->getHandler(),alarmType,info.data(),info.size(),this->userAlarm);
+    }
 }
 
 int DevAlarm::Request()
 {
+    if(!this->m_socketHandle->isValid()){
+        return KE_Network_Invalid;
+    }
+
     QByteArray sendMsg;
     if(this->alarmType == Alarm_Sensor){
         int msgLen = sizeof(KEAlarmSenserResp);
@@ -96,7 +106,7 @@ int DevAlarm::Request()
 
 bool DevAlarm::CheckAvaliable(int channelID)
 {
-    QList<DevAlarm *> listCommand =  this->parent()->findChildren<DevAlarm*>();
+    QList<DevAlarm *> listCommand = this->getParentDev()->GetChannelList<DevAlarm *>();
     if(listCommand.size() != 1){
         return false;
     }

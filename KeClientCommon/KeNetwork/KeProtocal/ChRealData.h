@@ -7,6 +7,7 @@ class ChRealData : public Channel
     Q_OBJECT
 public:
     explicit ChRealData(int channelID, Channel *parent);
+    ChRealData(SocketHandler * s,Channel *parent);
     ~ChRealData();
     QFile * saveFile;
     QByteArray timeSpan;

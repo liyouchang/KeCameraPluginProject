@@ -25,7 +25,7 @@ RecordDownloadController *RecordDownloadController::CreateInstance(AbstractContr
        controller =  new DevRecordDownload(parentDev);
     }
         break;
-    case KE_DevType_08SERVER:
+    case KE_DevType_08Client:
         break;
     }
 

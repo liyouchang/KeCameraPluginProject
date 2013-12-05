@@ -14,16 +14,25 @@ ChSimulateVideo:: ChSimulateVideo(SocketHandler *s, Channel *parent):
 {
     this->setChannelID(parent->getChannelID());
     this->toHoldSocket = true;
+    QObject::connect(s,&SocketHandler::saDisConnected,
+                     this,&ChSimulateVideo::VideoDisconnected);
 }
 
 
-void ChSimulateVideo::sendMedia(int channelNo, QByteArray &mediaData)
+void ChSimulateVideo::sendMedia(QByteArray mediaData)
 {
-    int tmpNo = m_channelID%256;
-    if(tmpNo == channelNo){
+
+    //int tmpNo = m_channelID%256;
+    //if(tmpNo == channelNo){
         this->mediaData = mediaData;
         this->Request();
-    }
+    //}
+}
+
+void ChSimulateVideo::VideoDisconnected()
+{
+    qDebug("disconnect video ,delete ChSimulateVideo");
+    delete this;
 }
 
 void ChSimulateVideo::OnRespond(QByteArray &data)
@@ -34,7 +43,9 @@ void ChSimulateVideo::OnRespond(QByteArray &data)
 
 int ChSimulateVideo::Request()
 {
-
+    if(!this->m_socketHandle->isValid()){
+        return KE_Network_Invalid;
+    }
     ProtocalIPC * protocal = qobject_cast<ProtocalIPC *>(this->m_protocal);
     QByteArray data = protocal->CreateMessage(this);
     return this->m_socketHandle->WriteData(data);

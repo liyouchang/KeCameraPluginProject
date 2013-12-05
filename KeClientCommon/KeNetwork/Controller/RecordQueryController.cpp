@@ -18,10 +18,11 @@ RecordQueryController *RecordQueryController::CreateInstance(AbstractController 
        controller =  new DevRecordQuery(parentDev);
     }
         break;
-    case KE_DevType_08SERVER:
+    case KE_DevType_08Client:
+        break;
+    default:
+        qWarning("RecordQueryController::CreateInstance error type");
         break;
     }
-
-
     return controller;
 }

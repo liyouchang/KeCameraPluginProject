@@ -15,7 +15,7 @@ void ChDeviceKey::OnRespond(QByteArray &msgData)
     case Device_GetKeyServer:
     {
         char * buf = msgData.data();
-        int devID = *(int *)(buf +6);
+        int devID = *(int *)(buf + 6);
         this->setChannelID(devID);
 
         memcpy(this->key,buf+10,8);

@@ -30,6 +30,7 @@ public:
     virtual int StopTalk() = 0;
     virtual int PTZControl(int PTZCommand, int step, int stop) = 0;
 
+    virtual void SetTimeout(int time) = 0;
     static RealPlayController *CreateInstance(AbstractController * parent);
 };
 

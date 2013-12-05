@@ -14,10 +14,10 @@ public:
     int alarmType;
     KEAlarmInfo alarmInfo;
 signals:
-    void toDoRespond();
+    void toDoRespond(int alarmType,QByteArray info);
 public slots:
     void OnRespond(QByteArray &msgData);
-    void DoRespond();
+    void DoRespond(int alarmType,QByteArray info);
 public:
     int Request();
     bool CheckAvaliable(int channelID);

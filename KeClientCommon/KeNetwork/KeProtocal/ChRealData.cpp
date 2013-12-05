@@ -11,6 +11,14 @@ ChRealData::ChRealData(int channelID, Channel *parent) :
     QObject::connect(this,&ChRealData::toDoRespond,this,&ChRealData::DoRespond);
 }
 
+ChRealData::ChRealData(SocketHandler *s, Channel *parent):
+    Channel(s,parent)
+{
+    this->saveFile = 0;
+
+    //QObject::connect(this,&ChRealData::toDoRespond,this,&ChRealData::DoRespond);
+}
+
 ChRealData::~ChRealData()
 {
     if(this->saveFile != 0)
@@ -32,6 +40,9 @@ void ChRealData::OnRespond(QByteArray &data)
 
 int ChRealData::Request()
 {
+    if(!this->m_socketHandle->isValid()){
+        return KE_Network_Invalid;
+    }
     QByteArray msgSend = this->m_protocal->CreateMessage(this);
     int ret = this->m_socketHandle->WriteData(msgSend);
     return ret;

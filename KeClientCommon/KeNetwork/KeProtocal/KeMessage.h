@@ -1,12 +1,15 @@
-#ifndef KEMESSAGE_H
+﻿#ifndef KEMESSAGE_H
 #define KEMESSAGE_H
 
+#include <QHostAddress>
+#include <QtEndian>
 
 enum KEMsgType
 {
     DevMsg_HeartBeat = 0x03,
     KEDevMsg_AlarmVideo= 0x0E,
     KEDevMsg_AlarmSenser = 0x0F,
+    KEDevMsg_SearchOnlineDevice = 0x49,
     KEMSG_RecordFileList = 0x53,
     KEMSG_REQUEST_DOWNLOAD_FILE = 0x54,
     KEMSG_RecordPlayData = 0x55,
@@ -32,8 +35,16 @@ enum KEMsgType
 #define RESP_NAK 0x05
 #define RESP_END 0x06
 
+#define KE_Terminal_Port 22616
+
 inline int CreateCameraID(int vid,int chNo){
     return (vid<<8) + chNo;
+}
+
+inline void CopyIP(char * dstIP,int srcIP){
+    int tmpIp = qToBigEndian<quint32>(srcIP);
+    QHostAddress addr(tmpIp);
+    strcpy(dstIP,addr.toString().toLatin1().data());
 }
 
 
@@ -46,7 +57,6 @@ struct KEDevMsgHead
     unsigned char msgType;
     unsigned int msgLength;
     int videoID;
-    int clientID;
 };
 
 struct KERTStreamHead
@@ -74,14 +84,83 @@ struct KEDevMsgViaClient
     int videoID;
     int clientID;
 };
+
+struct KEDevClientGetKeyResp{
+    unsigned char protocal;
+    unsigned char msgType;//0xE0
+    unsigned int msgLength;
+    int videoID;
+    int clientID;
+    char key[8];
+};
+struct KEDevClientLoginReq{
+    unsigned char protocal;
+    unsigned char msgType;//0xE1
+    unsigned int msgLength;
+    int videoID;
+    int clientID;
+    char md5[16];
+};
+
+struct KeDeviceGetKeyReq{
+    unsigned char protocal;
+    unsigned char msgType;//0xD0
+    unsigned int msgLength;
+    int videoID;
+    char deviceMac[16];
+};
+struct KeDeviceGetKeyResp{
+    unsigned char protocal;
+    unsigned char msgType;//0xD0
+    unsigned int msgLength;
+    int videoID;
+    char key[8];
+};
+struct KeDeviceLoginResp{
+    unsigned char protocal;
+    unsigned char msgType;//0x44
+    unsigned int msgLength;
+    int videoID;
+    char resp;
+};
+
+
+struct SChlName
+{
+    unsigned char byStart;
+    char szName[40];
+};
+
+struct KEDevClientLoginResp{
+    unsigned char protocal;
+    unsigned char msgType;//0xE1
+    unsigned int msgLength;
+    int videoID;
+    int clientID;
+    char resp;
+    char grade;						//用户级别0：超级(具有设置、查看权限) 1：普通(只有查看权限)
+    int ip;							//终端IP
+    int mask;						//终端子网掩码
+    int gateway;					//终端网关
+    int hardVer;					//终端硬件版本号
+    int softVer;					//终端软件版本号
+    int encodeVer;					//终端编码版本号
+    char videoModel[16];          //终端类型
+    char deviceId[20];            //终端设备标识码
+    char terName[40];				//终端名称
+    //SChlName chlName[32];			//通道名称
+    //char terTypeNo[32];           //设备对应的型号
+};
+
 struct KEDevMsgCommonReq{
     unsigned char protocal;
     unsigned  char msgType;
     unsigned int msgLength;
     int videoID;
     int clientID;
-    char chanelNo;
+    char resp;
 };
+
 struct KEChannelCommonResp{
     unsigned char protocal;
     unsigned  char msgType;
@@ -93,12 +172,14 @@ struct KEChannelCommonResp{
 };
 struct KEDeviceCommonResp
 {
+    unsigned char protocal;
     unsigned  char msgType;
     unsigned int msgLength;
     int videoID;
     int clientID;
     char resp;
 };
+
 struct KEDevAPListItem
 {
     char essid[32];
@@ -141,6 +222,7 @@ struct KEVedioParam{
     char subStream;//0传输/1存储
     char centerStorage;//中心存储0是不启用，1是启用
 };
+
 struct KEVideoServerReq
 {
     unsigned char protocal;
@@ -259,7 +341,7 @@ struct KEPlayRecordDataHead
 {
     unsigned char protocal;
     unsigned char msgType;//0x55
-    int msgLength;//15
+    int msgLength;//
     int videoID;
     int clientID;
     char channelNo;
@@ -319,6 +401,33 @@ struct KEAlarmVideoResp
     char state;//状态0/1=开始/结束
     char resp;
     char number;//序号
+};
+
+struct KESearchOnlineDeviceReq
+{
+    unsigned char protocal;
+    unsigned char msgType;//0x49
+    int msgLength;
+    char kaer[10];//KAER970326
+};
+struct KESearchOnlineDeviceResp
+{
+    unsigned char protocal;//0xFF
+    unsigned char msgType;//0x49
+    int msgLength;
+    int videoID;
+    int devIp;
+    int devMask;
+    int devGateWay;
+    int devDNS;
+    char userName[8];
+    char userPwd[8];
+    char channelCount;//终端类型   1:单路 4:四路
+    int devType;//类型  0：DVS, 1：解码器 ,2: DVR
+    char devSN[20];//设备标识码20B
+    int hardVer;//硬件型号
+    char softVer[10];//软件版本号
+    unsigned short port;
 };
 
 #pragma pack()

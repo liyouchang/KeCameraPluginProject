@@ -8,7 +8,7 @@ class SimulatorController : public ConnectionController
 {
 public:
     SimulatorController();
-    virtual int SendMediaData(int channelNo,const char * data,int len) = 0;
+    virtual void SendMediaData(int channelNo,const char * data,int len) = 0;
     virtual int SetMac(std::string mac) = 0;
     static SimulatorController *CreateInstance(AbstractController * parent);
 

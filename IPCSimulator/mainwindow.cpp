@@ -1,8 +1,8 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include "VideoFileReader.h"
 #include <QTime>
 #include <QDataStream>
+#include "Simulator/DevSimulateIPC.h"
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
@@ -10,77 +10,96 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
     inst = InstanceController::CreateInstance(KE_IPC_Simulator);
     simulator = SimulatorController::CreateInstance(inst);
+    reader = new VideoFileReader(this);
+
 }
 
 MainWindow::~MainWindow()
 {
+    delete reader;
+    delete inst;
     delete ui;
 }
 
-void MainWindow::on_startButton_clicked()
-{
-    int ret = simulator->ConnectDevice("192.168.0.8",22616);
-    if(ret != 0){
-        this->ErrorMessage("connect server error",EMsg_Error);
-    }
-    simulator->SetMac("008f4bd29941");
-    ret = simulator->LoginServer("system","123456");
-    if(ret != 0){
-        this->ErrorMessage(QString("connect server error %1").arg(ret),EMsg_Error);
-    }
-    VideoFileReader * reader = new VideoFileReader(this);
-    reader->ipc = simulator;
-    QObject::connect(reader,&VideoFileReader::errorMessage,this,&MainWindow::ErrorMessage);
-    reader->start();
-}
-
-void MainWindow::on_testButton_clicked()
-{
-
-    VideoFileReader * reader = new VideoFileReader(this);
-    QObject::connect(reader,&VideoFileReader::errorMessage,this,&MainWindow::ErrorMessage);
-    reader->start();
-}
-
-void stringToHtmlFilter(QString &str)
-{
-    //注意这几行代码的顺序不能乱，否则会造成多次替换
-    str.replace("&","&amp;");
-    str.replace(">","&gt;");
-    str.replace("<","&lt;");
-    str.replace("\"","&quot;");
-    str.replace("\'","&#39;");
-    str.replace(" ","&nbsp;");
-    str.replace("\n","<br>");
-    str.replace("\r","<br>");
-}
-
-void stringToHtml(QString &str,QColor crl)
-{
-    QByteArray array;
-    array.append(crl.red());
-    array.append(crl.green());
-    array.append(crl.blue());
-    QString strC(array.toHex());
-
-    str =  QString("<span  style='color:#%1;'>%2</span>").arg(strC).arg(str);
-}
 void MainWindow::ErrorMessage(const QString &str, int error)
 {
-    QString htmlStr =  QTime::currentTime().toString() + " : " + str;
-    stringToHtmlFilter(htmlStr);
-    switch (error){
-    case EMsg_Info:
-        stringToHtml(htmlStr,QColor(Qt::black));
-        break;
-    case EMsg_Warning:
-        stringToHtml(htmlStr,QColor(Qt::darkMagenta	));
-        break;
-    case EMsg_Error:
-        stringToHtml(htmlStr,QColor(Qt::red));
-        break;
-    }
-    ui->textEdit->insertHtml(htmlStr);
-    ui->textEdit->insertHtml("<br>");
+    ui->textEdit->showErrorMessage(str,error);
+}
 
+void MainWindow::on_btnLogin_clicked()
+{
+
+    QString devNum =  this->ui->editDevNum->text();
+    int num = devNum.toInt();
+    QString svrIp = this->ui->editServerIP->text();
+    std::string strSvrIp = svrIp.toLatin1().data();
+
+    QString devMac = this->ui->editMac->text();
+    bool ok;
+    qlonglong mac = devMac.toLongLong(&ok,16);
+
+
+    for(int i = 0;i<num;i++){
+        SimulatorController * sc = SimulatorController::CreateInstance(inst);
+        int ret = sc->ConnectDevice(strSvrIp,22616);
+        if(ret != 0){
+            this->ErrorMessage(QString("connect server error %1,number %2")
+                               .arg(ret).arg(i),EMsg_Error);
+            return;
+        }
+        QString tmpMac = QString::number(mac+i,16);
+        while(tmpMac.size() < 12){
+            tmpMac.push_front('0');
+        }
+        std::string strDevMac = tmpMac.toLatin1().data();
+        sc->SetMac(strDevMac);
+        QThread::msleep(200);
+        ret = sc->LoginServer("system","123456");
+        if(ret != 0){
+            ret = sc->LoginServer("system","123456");
+            if(ret != 0){
+                sc->DisConnect();
+                this->ErrorMessage(QString("login server error %1 -- Device %2,number %3")
+                                   .arg(ret).arg(tmpMac).arg(i),EMsg_Error);
+                return;
+            }
+        }
+        this->ErrorMessage(QString("login server success -- Device %1,number %2")
+                           .arg(tmpMac).arg(i),EMsg_Info);
+
+        DevSimulateIPC * ipc = dynamic_cast<DevSimulateIPC *>(sc);
+        if(ipc){
+            QObject::connect(reader,&VideoFileReader::sendFileData,
+                             ipc,&DevSimulateIPC::SendMediaData);
+        }
+    }
+
+    //    int ret = simulator->ConnectDevice(strSvrIp,22616);
+    //    if(ret != 0){
+    //        this->ErrorMessage("connect server error",EMsg_Error);
+    //        return;
+    //    }
+
+    //    simulator->SetMac(strDevMac);
+    //    ret = simulator->LoginServer("system","123456");
+    //    if(ret != 0){
+    //        simulator->DisConnect();
+    //        this->ErrorMessage(QString("login server error %1 -- Device %2").arg(ret).arg(devMac),EMsg_Error);
+    //        return;
+    //    }
+    //    this->ErrorMessage(QString("login server success -- Device %1").arg(devMac),EMsg_Info);
+
+    //    DevSimulateIPC * ipc = dynamic_cast<DevSimulateIPC *>(simulator);
+    //    if(ipc){
+    //        QObject::connect(reader,&VideoFileReader::sendFileData,
+    //                         ipc,&DevSimulateIPC::SendMediaData);
+    //    }
+    //
+}
+
+void MainWindow::on_btnVideo_clicked()
+{
+    //reader->ipc = simulator;
+    QObject::connect(reader,&VideoFileReader::errorMessage,this,&MainWindow::ErrorMessage);
+    reader->start();
 }

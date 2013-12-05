@@ -7,10 +7,20 @@
 #include "Controller/AlarmController.h"
 #include "HandleManager.h"
 #include <QtGlobal>
+#include <QCoreApplication>
 
 int KENet_CreateInstance(int type)
 {
+    static int argc=0;
+    static char **argv={ 0 };
+    if(!qApp){
+        qDebug("new QCoreApplication");
+        (void)new QCoreApplication(argc, argv);
+    }
     InstanceController * inst = InstanceController::CreateInstance(type);
+    if(inst == 0){
+        return KE_CreateInstance_Error;
+    }
     return inst->getHandler();
 }
 
@@ -26,15 +36,17 @@ int KENet_GetSDKVersion()
     return sdkVersion;
 }
 
-
-int KENet_Connect(int sID, const char *addr, int port, fDisConnect cbDisConnect, void *user)
+int KENet_Connect(int sID, const char *addr, int port, fConnectStatusCallBack cbConnectStatus, void *user)
 {
     InstanceController * parent = dynamic_cast<InstanceController *>(HandleManager::instance().GetObject(sID));
     if(parent == 0){
         return KE_Wrong_Control;
     }
     ConnectionController * connect = ConnectionController::CreateInstance(parent);
-    connect->SetDisConnectCallBack(cbDisConnect,user);
+    if(connect == 0){
+        return KE_No_Initial;
+    }
+    connect->SetConnectStatusCallBack(cbConnectStatus,user);
     int ret = connect->ConnectDevice(addr,port);
     if(ret == 0){
         return connect->getHandler();
@@ -45,26 +57,27 @@ int KENet_Connect(int sID, const char *addr, int port, fDisConnect cbDisConnect,
 
 }
 
-int KENet_SetAutoReconnect(int connectHandle, fHaveReConnect cbAutoConnect, void *user)
+//int KENet_SetAutoReconnect(int connectHandle, fHaveReConnect cbAutoConnect, void *user)
+//{
+//    AbstractController * controller = HandleManager::instance().GetObject(connectHandle);
+//    ConnectionController * connect = dynamic_cast<ConnectionController *>(controller);
+//    if(connect == 0)
+//        return KE_Wrong_Control;
+
+//    connect->SetAutoReconnectCallBack(cbAutoConnect,user);
+//    return KE_SUCCESS;
+//}
+
+
+int KENet_StartListen(int sID, int port,fNewConnection newConnect, void *user)
 {
-    AbstractController * controller = HandleManager::instance().GetObject(connectHandle);
-    ConnectionController * connect = dynamic_cast<ConnectionController *>(controller);
-    if(connect == 0)
-        return KE_Wrong_Control;
-
-    connect->SetAutoReconnectCallBack(cbAutoConnect,user);
-    return KE_SUCCESS;
-}
-
-
-int KENet_StartListen(int sID, fNewConnection newConnect, void *user)
-{
-    InstanceController * inst = dynamic_cast<InstanceController *>(HandleManager::instance().GetObject(sID));
+    AbstractController * controller = HandleManager::instance().GetObject(sID);
+    InstanceController * inst = dynamic_cast<InstanceController *>(controller);
     if(inst == 0){
         return KE_Wrong_Control;
     }
     inst->SetNewConnectionCallBack(newConnect,user);
-    return inst->ListenConnect(0);
+    return inst->ListenConnect(port);
 }
 
 
@@ -78,10 +91,10 @@ int KENet_DisConnect(int connectHandle)
 }
 
 
-int KENet_LoginServer(int connectHandle, const char *userName, const char *password, fDeviceTreeCallBack callBackFunc, void *user)
-{
-    return KE_Not_Support_Function;
-}
+//int KENet_LoginServer(int connectHandle, const char *userName, const char *password, fDeviceTreeCallBack callBackFunc, void *user)
+//{
+//    return KE_Not_Support_Function;
+//}
 
 
 int KENet_Logout(int connectHandle)
@@ -94,7 +107,8 @@ int KENet_StartRealPlay(int connectHandle, int channelID,
                         fRealDataCallBack cbRealData, fRealPlayDisConnect cbDisconnect,
                         void *dwUser, int dwWaitTime)
 {
-    ConnectionController * connect = dynamic_cast<ConnectionController *>(HandleManager::instance().GetObject(connectHandle));
+    AbstractController * controller = HandleManager::instance().GetObject(connectHandle);
+    ConnectionController * connect = dynamic_cast<ConnectionController *>(controller);
     if(connect == 0)    return KE_Wrong_Control;
 
     RealPlayController * realPlay = RealPlayController::CreateInstance(connect);
@@ -102,6 +116,7 @@ int KENet_StartRealPlay(int connectHandle, int channelID,
         delete realPlay;
         return KE_Channel_NotFree;
     }
+    realPlay->SetTimeout(dwWaitTime);
     realPlay->SetRealDataCallBack(cbRealData,dwUser);
     realPlay->SetRealPlayDisConnect(cbDisconnect,dwUser);
 
@@ -309,7 +324,9 @@ int KENet_FindClose(int findHandle)
 }
 
 
-int KENet_DownloadByRecordFile(int connectHandle, NET_RECORDFILE_INFO recordFile, const char *sSavedFileName, fDownLoadPosCallBack cbDownLoadPos, void *dwUserData)
+int KENet_DownloadByRecordFile(int connectHandle, NET_RECORDFILE_INFO recordFile,
+                               const char *sSavedFileName, fDownLoadPosCallBack cbDownLoadPos,
+                               void *dwUserData)
 {
     AbstractController * controller = HandleManager::instance().GetObject(connectHandle);
     ConnectionController * connect = dynamic_cast<ConnectionController *>(controller);
@@ -368,7 +385,7 @@ int KENet_StartAlarm(int connectHandle, fAlarmCallBack cbMessage, void *dwUser)
     }
     alarm->SetAlarmCallBack(cbMessage,dwUser);
 
-    return KE_SUCCESS;
+    return alarm->getHandler();
 }
 
 
@@ -379,5 +396,64 @@ int KENet_StopAlarm(int alarmHandle)
     if(alarm == 0)    return KE_Wrong_Control;
 
     delete alarm;
+    return KE_SUCCESS;
+}
 
+
+int KENet_StartSearchDevice(int sID, fSearchDeviceCallBack cbfunc, void *user)
+{
+    AbstractController * controller = HandleManager::instance().GetObject(sID);
+    InstanceController * inst = dynamic_cast<InstanceController *>(controller);
+    if(inst == 0){
+        return KE_Wrong_Control;
+    }
+    inst->SetSearchDeviceCallBack(cbfunc,user);
+    return inst->SearchDevice();
+}
+
+
+int KENet_StopSearchDevice(int sID)
+{
+    AbstractController * controller = HandleManager::instance().GetObject(sID);
+    InstanceController * inst = dynamic_cast<InstanceController *>(controller);
+    if(inst == 0){
+        return KE_Wrong_Control;
+    }
+    inst->SetSearchDeviceCallBack(0,0);
+    return KE_SUCCESS;
+
+}
+
+
+int KENet_LoginDevice(int connectHandle, const char *userName, const char *password, NET_DEVICEINFO *info)
+{
+    AbstractController * controller = HandleManager::instance().GetObject(connectHandle);
+    ConnectionController * connect = dynamic_cast<ConnectionController *>(controller);
+    if(connect == 0){
+        return KE_Wrong_Control;
+    }
+
+    int ret =connect->LoginServer(userName,password);
+    if(ret != KE_SUCCESS)
+        return ret;
+    connect->GetDeviceInfo(info);
+    return KE_SUCCESS;
+}
+
+
+int KENet_TryConnect(int sID, const char *addr, int port, fConnectStatusCallBack cbConnectStatus, void *user)
+{
+    InstanceController * parent = dynamic_cast<InstanceController *>(HandleManager::instance().GetObject(sID));
+    if(parent == 0){
+        return KE_Wrong_Control;
+    }
+    ConnectionController * connect = ConnectionController::CreateInstance(parent);
+    connect->SetConnectStatusCallBack(cbConnectStatus,user);
+    int ret = connect->TryConnect(addr,port);
+    if(ret == 0){
+        return connect->getHandler();
+    }
+    else{
+        return ret;
+    }
 }

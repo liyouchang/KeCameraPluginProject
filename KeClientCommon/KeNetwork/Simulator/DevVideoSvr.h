@@ -11,7 +11,7 @@ public:
 
 signals:
     void toDoRespond();
-
+    void toSendMediaData(QByteArray mediaData);
     // Channel interface
 public slots:
     void OnRespond(QByteArray &msgData);

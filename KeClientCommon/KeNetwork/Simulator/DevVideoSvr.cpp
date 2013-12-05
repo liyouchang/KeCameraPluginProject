@@ -27,8 +27,10 @@ void DevVideoSvr::OnRespond(QByteArray &msgData)
             return;
 
         this->transIp = qToBigEndian<quint32>(pMsg->transSvrIp);
-        this->mediaType |= (pMsg->video==0) ? Media_Vedio: Media_None ;
-        this->mediaType |= (pMsg->listen==0) ? Media_Audio: Media_None ;
+        int tmpMediaType = 0;
+        tmpMediaType |= (pMsg->video==0) ? Media_Vedio: Media_None ;
+        tmpMediaType |= (pMsg->listen==0) ? Media_Audio: Media_None ;
+        this->mediaType = tmpMediaType;
         emit this->toDoRespond();
     }
         break;
@@ -41,24 +43,42 @@ void DevVideoSvr::DoRespond()
 {
     if(mediaType != Media_None)//create new video channel
     {
-        if(transIp != 0)
-        {
-            SocketHandler * socket = new SocketHandler();
-            socket->CreateSocket();
-            QHostAddress addr(transIp);
-            socket->ConnectToHost(addr.toString(),22615);
-            if(socket->lastError != 0){
-                qWarning()<<addr.toString()<<" connect error!";
-                this->respond = RESP_NAK;
-                this->Request();
-                return;
-            }
-            ChSimulateVideo * ch = new ChSimulateVideo(socket,this);
+        ChSimulateVideo * ch = this->GetChannel<ChSimulateVideo *>();
+        if(ch != 0){
+            ch->mediaType = this->mediaType;
         }
         else{
-            ChSimulateVideo * ch = new ChSimulateVideo(this);
+            if(transIp != 0)
+            {
+                SocketHandler * socket = new SocketHandler();
+                socket->CreateSocket();
+                QHostAddress addr(transIp);
+                socket->ConnectToHost(addr.toString(),22615);
+                if(socket->lastError != 0){
+                    qWarning()<<addr.toString()<<" connect error!";
+                    this->respond = RESP_NAK;
+                    this->Request();
+                    return;
+                }
+                qDebug("DevVideoSvr %d create ChSimulateVideo",this->getChannelID());
+                ChSimulateVideo * ch = new ChSimulateVideo(socket,this);
+                ch->mediaType = this->mediaType;
+                QObject::connect(this,&DevVideoSvr::toSendMediaData,ch,&ChSimulateVideo::sendMedia);
+            }
+            else{
+                ChSimulateVideo * ch = new ChSimulateVideo(this);
+                QObject::connect(this,&DevVideoSvr::toSendMediaData,ch,&ChSimulateVideo::sendMedia);
+            }
         }
     }
+    else{
+        qDebug("DevVideoSvr %d delete  ChSimulateVideo",this->getChannelID());
+        ChSimulateVideo * ch = this->GetChannel<ChSimulateVideo *>();
+        if(ch != 0){
+            delete ch;
+        }
+    }
+    this->respond = RESP_ACK;
     this->Request();
 }
 
@@ -66,11 +86,7 @@ void DevVideoSvr::sendMedia(int channelNo, QByteArray &mediaData)
 {
     int tmpNo = this->getChannelID()%256;
     if(tmpNo == channelNo && this->mediaType != Media_None){
-        QList<ChSimulateVideo *> listCommand =  this->findChildren<ChSimulateVideo *>();
-        for(int i = 0; i < listCommand.size(); ++i) {
-            listCommand[i]->mediaData = mediaData;
-            listCommand[i]->Request();
-        }
+        emit this->toSendMediaData(mediaData);
     }
 }
 

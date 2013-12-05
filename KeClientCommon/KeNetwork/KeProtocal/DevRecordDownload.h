@@ -13,6 +13,7 @@ public:
     ~DevRecordDownload();
 signals:
     void downloadPos(int totalSize,int downloadSize);
+    void toUpdateDownload(int newSize);
 public slots:
     //if newSize is -1 ,the download is end
     void UpdataDownload(int newSize);
@@ -31,6 +32,7 @@ public:
     NET_RECORDFILE_INFO recordFileInfo;
     int recordError;
     int downloadedSize;
+    int downloadTotalSize;
     QFile * recordFile;
 
 };

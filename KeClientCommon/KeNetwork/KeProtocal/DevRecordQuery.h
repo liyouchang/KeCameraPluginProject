@@ -3,6 +3,7 @@
 
 #include "Device.h"
 #include "Controller/RecordQueryController.h"
+
 class DevRecordQuery : public Device,public RecordQueryController
 {
     Q_OBJECT
