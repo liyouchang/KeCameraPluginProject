@@ -8,9 +8,11 @@
 enum UpdateStatus{
     UpdateStatus_None,
     UpdateStatus_Need,
+    UpdateStatus_Waiting,
     UpdateStatus_Ready,
     UpdateStatus_Doing,
-    UpdateStatus_Done
+    UpdateStatus_Done,
+    UpdateStatus_Error
 };
 
 class DeviceItem
@@ -30,6 +32,10 @@ public:
     bool operator ==(const DeviceItem & item);
     QString getUpdateStatusInfo() const;
     bool setUpdateStatus(int status,int percent = 0);
+
+    bool m_checked;
+    bool isChecked();
+    void setCheckState(bool state);
 signals:
 
 public slots:

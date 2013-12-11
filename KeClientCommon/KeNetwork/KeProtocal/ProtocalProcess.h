@@ -31,7 +31,6 @@ public:
     virtual void ParseMessage(QByteArray &msgData, DevRecordQuery *ch);
 
 
-
 protected:
     QByteArray msgRecv;
     int bufPos;

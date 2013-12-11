@@ -7,6 +7,7 @@
 #include <QVariant>
 #include <QList>
 #include <QStringList>
+
 #include "DeviceItem.h"
 
 class UpdateDevModel : public QAbstractItemModel
@@ -15,12 +16,13 @@ class UpdateDevModel : public QAbstractItemModel
 public:
     explicit UpdateDevModel(const QStringList &headers,QObject *parent = 0);
     ~UpdateDevModel();
-    void testData();
 signals:
-
+    //void selectedRows(int num);
 public slots:
+    void refreshDataChanged();
     // QAbstractItemModel interface
 public:
+    Qt::ItemFlags flags(const QModelIndex &index) const;
     int rowCount(const QModelIndex &parent) const;
     int columnCount(const QModelIndex &parent) const;
     QModelIndex index(int row, int column, const QModelIndex &parent) const;
@@ -34,15 +36,17 @@ public:
 private:
     QStringList headerTexts;
     QList<DeviceItem *> items;
-
 public:
+    QList<DeviceItem *> m_checkedList;
+    QList<QModelIndex> topLeftList;
+    QList<QModelIndex> bottomRightList;
+    DeviceItem * getItem(const QModelIndex &index);
     int itemsCount();
     bool pushItem(DeviceItem *item);
     void changeItem(DeviceItem * item);
     bool changeItem(void * c,int updateStatus,int updatePercent);
     bool deleteItem(void * c);
     int getDevItemPos(void * c);
-
 };
 
 #endif // UPDATEDEVMODEL_H

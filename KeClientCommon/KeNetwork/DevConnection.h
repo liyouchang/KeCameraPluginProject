@@ -23,7 +23,7 @@ signals:
 public slots:
     virtual void GetMessageData(QByteArray &allBytes);
     virtual void OnRespond(QByteArray & data);
-    void SendHeartBeat();
+    virtual void HeartBeat();
     void Reconnect();
     virtual void DevDisconnect();
     virtual void DevConnected();

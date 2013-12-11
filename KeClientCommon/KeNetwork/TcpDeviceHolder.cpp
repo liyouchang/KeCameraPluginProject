@@ -12,17 +12,13 @@ TcpDeviceHolder::TcpDeviceHolder()
     ChannelTread::instance().start();
     this->moveToThread(&ChannelTread::instance());
     this->m_server = 0;
-    if(m_server == 0){
-        m_server = new TcpListener(this);
-        QObject::connect(m_server,&TcpListener::newSocketHandler,
-                         this,&TcpDeviceHolder::sGetSocketHandler);
-    }
+
 }
 
 TcpDeviceHolder::~TcpDeviceHolder()
 {
-//    if(m_server)
-//        delete m_server;
+    if(m_server)
+        m_server->deleteLater();
 }
 
 void TcpDeviceHolder::SearchedDev(int devIndex, QByteArray devInfo)
@@ -33,16 +29,17 @@ void TcpDeviceHolder::SearchedDev(int devIndex, QByteArray devInfo)
     }
 }
 
-void TcpDeviceHolder::sGetSocketHandler(SocketHandler *sh)
+void TcpDeviceHolder::sGetSocketHandler(void*)
 {
-    qDebug("TcpDeviceHolder::sGetSocketHandler");
-    AbstractController * pc = dynamic_cast<AbstractController * >(this);
-    DeviceFactory::instance().sCreateConnectionController(pc,sh);
-    DevConnectSvr * connectDev = dynamic_cast<DevConnectSvr *>(DeviceFactory::instance().currentControl);
-    if(connectDev == 0){
-        qDebug("TcpDeviceHolder::sGetSocketHandler controll create error");
-        return;
-    }
+
+//    qDebug("TcpDeviceHolder::sGetSocketHandler");
+//    AbstractController * pc = dynamic_cast<AbstractController * >(this);
+//    DeviceFactory::instance().sCreateConnectionController(pc,sh);
+//    DevConnectSvr * connectDev = dynamic_cast<DevConnectSvr *>(DeviceFactory::instance().currentControl);
+//    if(connectDev == 0){
+//        qDebug("TcpDeviceHolder::sGetSocketHandler controll create error");
+//        return;
+//    }
     //emit NewConnection(controller);
 }
 
@@ -57,11 +54,17 @@ void TcpDeviceHolder::havaNewLogin(int puid, QByteArray devMac)
 
 int TcpDeviceHolder::ListenConnect(int port)
 {
+    if(m_server == 0){
+        m_server = new TcpListener();
+        QObject::connect(m_server,&TcpListener::newSocketHandler,
+                         this,&TcpDeviceHolder::sGetSocketHandler);
+    }
     if (!m_server->isListening()) {
-        // Set up the peer wire server
-        //if (!m_server->listen(QHostAddress::Any, port))
-        //    return KE_NETWORK_ERROR;
-        emit m_server->sbListenConnect(port);
+        // Set up the peer server
+        if (!m_server->listen(QHostAddress::Any, port)){
+            qCritical("TcpDeviceHolder::ListenConnect listen error");
+            return KE_NETWORK_ERROR;
+        }
     }
     return 0;
 }

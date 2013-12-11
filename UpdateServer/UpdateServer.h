@@ -14,7 +14,7 @@ signals:
 public slots:
     // TcpDeviceHolder interface
 public slots:
-    void sGetSocketHandler(SocketHandler *sh);
+    void sGetSocketHandler(void *handle);
 };
 
 #endif // UPDATESERVER_H

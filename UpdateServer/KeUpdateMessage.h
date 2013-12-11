@@ -68,7 +68,8 @@ struct KEUpdateDataResp
     unsigned char protocal;
     unsigned char msgType;
     unsigned int msgLength;
-    short currentPack;
+    //short currentPack;
+    char resp;
 };
 #pragma pack()
 

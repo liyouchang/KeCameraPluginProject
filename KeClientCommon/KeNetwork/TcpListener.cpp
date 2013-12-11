@@ -9,12 +9,12 @@ TcpListener::TcpListener(QObject *parent) :
 
 void TcpListener::incomingConnection(qintptr handle)
 {
-    qDebug("TcpListener::incomingConnection");
-    SocketHandler * s = new SocketHandler();
-    s->CreateSocket();
-    s->SetSocketDescriptor(handle);
-
-    emit newSocketHandler(s);
+//    qDebug("TcpListener::incomingConnection");
+//    SocketHandler * s = new SocketHandler();
+//    s->CreateSocket();
+//    s->SetSocketDescriptor(handle);
+    void * tmp = (void *)handle;
+    emit newSocketHandler(tmp);
 
 }
 

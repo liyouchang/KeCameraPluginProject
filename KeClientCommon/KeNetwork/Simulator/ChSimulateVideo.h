@@ -3,7 +3,7 @@
 
 #include <QObject>
 #include <Channel.h>
-enum MediaType
+enum Simulate_MediaType
 {
     Media_None = 0x00,
     Media_Vedio = 0x01,

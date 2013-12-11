@@ -22,6 +22,7 @@ public:
 public slots:
     void OnRespond(QByteArray &msgData);
     virtual void DevDisconnect();
+    virtual void HeartBeat();
 
 public:
     int Request();

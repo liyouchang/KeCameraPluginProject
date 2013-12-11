@@ -44,10 +44,14 @@ int DevRealPlay::StartRealPlay(int channelID)
     if(m_channelID == 0){
         m_videoSocket->CreateSocket();
 
-        int ret = m_videoSocket->ConnectToAddr(
-                    this->m_socketHandle->m_addr,
-                    this->m_socketHandle->m_port,
-                    this->m_realTimeout);
+//        int ret = m_videoSocket->ConnectToAddr(
+//                    this->m_socketHandle->m_addr,
+//                    this->m_socketHandle->m_port,
+//                    this->m_realTimeout);
+                int ret = m_videoSocket->ConnectToAddr(
+                            this->m_socketHandle->m_addr,
+                            22616,
+                            this->m_realTimeout);
         if(ret != KE_SUCCESS){
             return ret;
         }

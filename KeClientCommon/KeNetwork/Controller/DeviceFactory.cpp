@@ -104,9 +104,9 @@ void DeviceFactory::sCreateConnectionController(AbstractController *parent, Sock
         }
         DevSimulateIPC * dev =  new DevSimulateIPC(sh,protocal,parentDev);
         DevVideoSvr * subDev = new DevVideoSvr(dev);
+        subDev->setChannelID(1);
         //QObject::connect(dev,&DevSimulateIPC::sendMedia,subDev,&DevVideoSvr::sendMedia);
         controller = dynamic_cast<SimulatorController *>(dev);
-
     }
         break;
     case KE_DevType_08Proxy:

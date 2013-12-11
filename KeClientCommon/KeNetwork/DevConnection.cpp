@@ -10,15 +10,12 @@
 DevConnection::DevConnection(SocketHandler *s, ProtocalProcess *protocal, Device *parent) :
     Device(s,protocal,parent)
 {
-
     this->toHoldSocket = true;
-    protocal->setParent(this);
     heartbeatTimer = new QTimer(this);
     this->heartCount = 0;
-    QObject::connect(heartbeatTimer,&QTimer::timeout,this,&DevConnection::SendHeartBeat);
+    QObject::connect(heartbeatTimer,&QTimer::timeout,this,&DevConnection::HeartBeat);
     QObject::connect(m_socketHandle,&SocketHandler::sdReadedData,
-                     this,&DevConnection::GetMessageData,
-                     Qt::DirectConnection);
+                     this,&DevConnection::GetMessageData,Qt::DirectConnection);
 
     QObject::connect(m_socketHandle,&SocketHandler::saConnected,
                      this,&DevConnection::DevConnected);
@@ -45,6 +42,10 @@ DevConnection::DevConnection(SocketHandler *s, Device *parent):Device(s,parent)
 
 DevConnection::~DevConnection()
 {
+    heartbeatTimer->deleteLater();
+    reconnectTimer->deleteLater();
+    delete m_protocal;
+
 }
 
 void DevConnection::GetMessageData(QByteArray & allBytes)
@@ -57,7 +58,7 @@ void DevConnection::OnRespond(QByteArray &data)
     this->m_protocal->ParseMessage(data,this);
 }
 
-void DevConnection::SendHeartBeat()
+void DevConnection::HeartBeat()
 {
     if(heartCount > 3){
         qWarning("heart beat loose 3 times, connection end");
@@ -101,7 +102,6 @@ void DevConnection::DevConnected()
             this->cbConnectStatus(this->getHandler(),Connect_Again,this->userConnectStatus);
         }
     }
-
     //stop reconnect
     this->reconnectTimer->stop();
 }

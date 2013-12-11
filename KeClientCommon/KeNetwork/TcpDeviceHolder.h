@@ -22,7 +22,7 @@ signals:
     void NewLoginInfo(int puid,QByteArray devMac);
 public slots:
     void SearchedDev(int devIndex, QByteArray devInfo);
-    void sGetSocketHandler(SocketHandler * sh);
+    virtual void sGetSocketHandler(void *);
     void havaNewLogin(int puid,QByteArray devMac);
     // InstanceController interface
 public:

@@ -53,6 +53,7 @@ signals:
     void saDisConnected();
     void saConnected();
     void sdReadedData(QByteArray & byteArray);
+    void saReadedData(QByteArray byteArray);
 
 public slots:
     void sCreateSocket();

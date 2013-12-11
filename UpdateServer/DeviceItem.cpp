@@ -7,7 +7,9 @@
 DeviceItem::DeviceItem()
 {
     this->connect = 0;
-    this->updateStatus = 0;
+    this->updateStatus = 1;
+    this->m_checked = 0;
+    this->updatePercent = 0;
 }
 
 QVariant DeviceItem::data(int column) const
@@ -34,12 +36,19 @@ bool DeviceItem::setData(int column, const QVariant &value)
     switch (column) {
     case 0:
         this->mac = value.toString();
+        break;
     case 1:
         this->type = value.toString();
+        break;
     case 2:
         this->version = value.toString();
-    case 3:
-        this->updateInfo = value.toString();
+        break;
+    case 3:{
+        bool ok;
+        this->updateStatus = value.toInt(&ok);
+        return ok;
+    }
+        break;
     default:
         return false;
     }
@@ -61,17 +70,21 @@ QString DeviceItem::getUpdateStatusInfo() const
 {
     switch (this->updateStatus) {
     case UpdateStatus_None:
-        return "无需升级 ";
+        return QString("%1 无需升级 ").arg(updateStatus);
     case UpdateStatus_Need:
-        return "未升级";
+        return QString("%1 未升级").arg(updateStatus);
+    case UpdateStatus_Waiting:
+        return QString("%1 等待升级").arg(updateStatus);
     case UpdateStatus_Ready:
-        return "准备升级";
+        return QString("%1 准备升级").arg(updateStatus);
     case UpdateStatus_Doing:
-        return QString("正在升级 %1%").arg(updatePercent);
+        return QString("%1 正在升级 %2%").arg(this->updateStatus).arg(updatePercent);
     case UpdateStatus_Done:
-        return "升级完成";
+        return QString("%1 升级完成").arg(updateStatus);
+    case UpdateStatus_Error:
+        return QString("%1 升级失败").arg(updateStatus);
     default:
-        return "";
+        return QString("%1").arg(updateStatus);
     }
 }
 
@@ -87,6 +100,16 @@ bool DeviceItem::setUpdateStatus(int status, int percent)
         return true;
     }else
         return false;
+}
+
+bool DeviceItem::isChecked()
+{
+    return m_checked;
+}
+
+void DeviceItem::setCheckState(bool state)
+{
+    m_checked = state;
 }
 
 bool DeviceItem::operator ==(const DeviceItem &item)

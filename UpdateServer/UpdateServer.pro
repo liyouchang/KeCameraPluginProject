@@ -30,7 +30,5 @@ HEADERS  += UpdateServerWindow.h \
 
 FORMS    += UpdateServerWindow.ui
 
-Debug:DESTDIR = $$PWD/../Debug
-Release:DESTDIR = $$PWD/../Release
-
 include(../KeClientCommon/KeNetwork/KeNetwork.pri)
+include(../KeClientCommon/MyControl/MyControl.pri)

@@ -23,9 +23,10 @@ Device::Device(Device *parent):
 
 Device::~Device()
 {
-    for(int i=0;i<childrenChannel.size();++i){
-        delete childrenChannel[i];
-    }
+    qDeleteAll(childrenChannel);
+//    for(int i=0;i<childrenChannel.size();++i){
+//        childrenChannel[i]->deleteLater();
+//    }
 }
 
 void Device::GetMessageData(QByteArray &allBytes)

@@ -39,13 +39,13 @@ HEADERS += \
     $$PWD/KeProtocal/DevRecordDownload.h \
     $$PWD/KeProtocal/DevAlarm.h \
     $$PWD/KeProtocal/ChSearchDevice.h \
-    ../KeClientCommon/KeNetwork/KeProtocal/ChAskVideo.h \
-    ../KeClientCommon/KeNetwork/KeProtocal/ChLogin.h \
-    ../KeClientCommon/KeNetwork/KeProtocal/ProtocalKaerServer.h \
-    ../KeClientCommon/KeNetwork/KeProxy/ProtocalKaerProxy.h \
-    ../KeClientCommon/KeNetwork/KeProxy/DevConnectSvr.h \
-    ../KeClientCommon/KeNetwork/KeProxy/ChReceiveLogin.h \
-    ../KeClientCommon/KeNetwork/Controller/DeviceFactory.h
+    $$PWD/KeProtocal/ChAskVideo.h \
+    $$PWD/KeProtocal/ChLogin.h \
+    $$PWD/KeProtocal/ProtocalKaerServer.h \
+    $$PWD/KeProxy/ProtocalKaerProxy.h \
+    $$PWD/KeProxy/DevConnectSvr.h \
+    $$PWD/KeProxy/ChReceiveLogin.h \
+    $$PWD/Controller/DeviceFactory.h
 
 SOURCES += \
     $$PWD/Controller/InstanceController.cpp \
@@ -80,10 +80,10 @@ SOURCES += \
     $$PWD/KeProtocal/DevRecordDownload.cpp \
     $$PWD/KeProtocal/DevAlarm.cpp \
     $$PWD/KeProtocal/ChSearchDevice.cpp \
-    ../KeClientCommon/KeNetwork/KeProtocal/ChAskVideo.cpp \
-    ../KeClientCommon/KeNetwork/KeProtocal/ChLogin.cpp \
-    ../KeClientCommon/KeNetwork/KeProtocal/ProtocalKaerServer.cpp \
-    ../KeClientCommon/KeNetwork/KeProxy/ProtocalKaerProxy.cpp \
-    ../KeClientCommon/KeNetwork/KeProxy/DevConnectSvr.cpp \
-    ../KeClientCommon/KeNetwork/KeProxy/ChReceiveLogin.cpp \
-    ../KeClientCommon/KeNetwork/Controller/DeviceFactory.cpp
+    $$PWD/KeProtocal/ChAskVideo.cpp \
+    $$PWD/KeProtocal/ChLogin.cpp \
+    $$PWD/KeProtocal/ProtocalKaerServer.cpp \
+    $$PWD/KeProxy/ProtocalKaerProxy.cpp \
+    $$PWD/KeProxy/DevConnectSvr.cpp \
+    $$PWD/KeProxy/ChReceiveLogin.cpp \
+    $$PWD/Controller/DeviceFactory.cpp

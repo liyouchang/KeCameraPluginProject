@@ -54,6 +54,7 @@ void ChReceiveLogin::OnRespond(QByteArray &msgData)
         emit getDeviceLogin(this->getChannelID(),this->devMac);
     }
         break;
+
     default:
         qWarning("ChReceiveLogin receive unsurported message");
         break;

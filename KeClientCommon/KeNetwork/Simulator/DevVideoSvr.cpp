@@ -23,7 +23,7 @@ void DevVideoSvr::OnRespond(QByteArray &msgData)
         qDebug("DevSimulateIPC::OnRespond msg KEMSG_TYPE_VIDEOSERVER!");
         KEVideoServerReq * pMsg = (KEVideoServerReq *)msgData.data();
         int cameraID = CreateCameraID(pMsg->videoID,pMsg->channelNo);
-        if(cameraID != this->getChannelID())
+        if(cameraID != this->getChannelID()%256)
             return;
 
         this->transIp = qToBigEndian<quint32>(pMsg->transSvrIp);
@@ -66,6 +66,7 @@ void DevVideoSvr::DoRespond()
                 QObject::connect(this,&DevVideoSvr::toSendMediaData,ch,&ChSimulateVideo::sendMedia);
             }
             else{
+
                 ChSimulateVideo * ch = new ChSimulateVideo(this);
                 QObject::connect(this,&DevVideoSvr::toSendMediaData,ch,&ChSimulateVideo::sendMedia);
             }

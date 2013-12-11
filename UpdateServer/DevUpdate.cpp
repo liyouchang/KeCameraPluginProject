@@ -5,13 +5,17 @@
 DevUpdate::DevUpdate(SocketHandler *s, ProtocalProcess *protocal, Device *parent) :
     DevConnectSvr(s,protocal,parent)
 {
-    this->heartbeatTimer->start(60000);
+    this->onceHeartTime = 60000;
+    heartTimeoutCount = 3;
+    this->heartbeatTimer->start(onceHeartTime);
     oldPercent = 0;
+    this->heartTime = QTime::currentTime();
+    QObject::connect(this,&DevUpdate::toSendUpdate,
+                     this,&DevUpdate::doSendUpdate);
 }
 
 void DevUpdate::StartDevUpdate(QByteArray allData)
 {
-    //TODO:param thread share
     this->currentPackage = 0;
     this->totalPackage = (allData.size()+ONE_PACK_SIZE-1)/ONE_PACK_SIZE;
     this->allData = allData;
@@ -25,6 +29,8 @@ void DevUpdate::DevDisconnect()
     this->deleteLater();
 }
 
+
+
 void DevUpdate::OnRespond(QByteArray &msgData)
 {
     unsigned char  msgType = msgData[1];
@@ -33,27 +39,33 @@ void DevUpdate::OnRespond(QByteArray &msgData)
     case Update_Register:
     {
         KEUpdateReq * pMsg = (KEUpdateReq *)msgData.data();
-        emit DevUpdateStatus(this,pMsg->mac,pMsg->version,pMsg->puType);
         doRespond(msgType);
+        emit DevUpdateStatus(this,pMsg->mac,pMsg->version,pMsg->puType);
     }
         break;
     case Update_HeartBeat:
     {
         KEUpdateReq * pMsg = (KEUpdateReq *)msgData.data();
-        emit DevUpdateStatus(this,pMsg->mac,pMsg->version,pMsg->puType);
+        this->heartTime = QTime::currentTime();
         doRespond(msgType);
-        this->heartCount -- ;
         if(!this->updateStart && !allData.isEmpty())
         {
             updateStart = true;
-            doSendUpdate(-1);
+            this->currentPackage = 0;
+            emit toSendUpdate();
         }
+        emit DevUpdateStatus(this,pMsg->mac,pMsg->version,pMsg->puType);
     }
         break;
     case Update_Data:
     {
         KEUpdateDataResp * pMsg = (KEUpdateDataResp *)msgData.data();
-        doSendUpdate(pMsg->currentPack);
+        if(pMsg->resp == RESP_ACK){
+            emit this->DevUpdateProcess(this,200);
+        }
+        else if(pMsg->resp == RESP_NAK){
+            emit this->DevUpdateProcess(this,201);
+        }
     }
         break;
     default:
@@ -64,11 +76,12 @@ void DevUpdate::OnRespond(QByteArray &msgData)
 
 void DevUpdate::HeartBeat()
 {
-    if(heartCount > 2){
-        qWarning("heart beat loose 3 times, connection end");
+    QTime current = QTime::currentTime();
+    if(heartTime.msecsTo(current) > heartTimeoutCount * onceHeartTime){
+        qWarning("heart beat loose %d times, connection end",heartTimeoutCount);
         this->DisConnect();
     }
-    ++heartCount;
+//    ++heartCount;
 }
 
 void DevUpdate::doRespond(int msgType)
@@ -84,24 +97,18 @@ void DevUpdate::doRespond(int msgType)
     this->m_socketHandle->sWriteData(sendData);
 }
 
-void DevUpdate::doSendUpdate(int lastPack)
+void DevUpdate::doSendUpdate()
 {
-    this->currentPackage = lastPack+1;
-    int percent = this->currentPackage *100 /this->totalPackage;
-    if(percent != this->oldPercent){
-        emit this->DevUpdateProcess(this,percent);
-        this->oldPercent = percent;
-    }
+    //send end
     if(this->currentPackage == this->totalPackage){
         this->allData.clear();
         return;
     }
-    QByteArray sendData;
+    QByteArray headData;
     int msgLen = sizeof(KEUpdateDataReq);
-    sendData.resize(msgLen);
-    KEUpdateDataReq * pMsg =(KEUpdateDataReq *) sendData.data();
+    headData.resize(msgLen);
+    KEUpdateDataReq * pMsg =(KEUpdateDataReq *) headData.data();
     pMsg->protocal = PROTOCOL_HEAD;
-
     pMsg->msgType = Update_Data;
     pMsg->totalPack = this->totalPackage;
     pMsg->currentPack = this->currentPackage;
@@ -109,17 +116,26 @@ void DevUpdate::doSendUpdate(int lastPack)
     QByteArray tmpByte ;
     if(this->currentPackage + 1 == this->totalPackage)
     {
-        tmpByte  = this->allData.mid(this->currentPackage*ONE_PACK_SIZE);
+        int dataPack = this->currentPackage;
+        tmpByte  = this->allData.mid(dataPack*ONE_PACK_SIZE);
     }
     else
     {
-        tmpByte  = this->allData.mid(this->currentPackage*ONE_PACK_SIZE,ONE_PACK_SIZE);
+        int dataPack = this->currentPackage;
+        tmpByte  = this->allData.mid(dataPack*ONE_PACK_SIZE,ONE_PACK_SIZE);
+    }
+    pMsg->msgLength = headData.size() + tmpByte.size() - sizeof(KEUpdateMsgHead);
+    QByteArray sendData = headData + tmpByte;
+    this->m_socketHandle->WriteData(sendData);
+    this->currentPackage += 1;
+    QTimer::singleShot(20,this,SLOT(doSendUpdate()));
+
+    int percent = this->currentPackage *100 /this->totalPackage;
+    if(percent != this->oldPercent){
+        emit this->DevUpdateProcess(this,percent);
+        this->oldPercent = percent;
     }
 
-    pMsg->msgLength = sendData.size() + tmpByte.size() - sizeof(KEUpdateMsgHead);
-
-    this->m_socketHandle->sWriteData(sendData);
-    this->m_socketHandle->sWriteData(tmpByte);
 }
 
 int DevUpdate::Request()
